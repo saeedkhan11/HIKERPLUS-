@@ -55,6 +55,7 @@ export function AuthProvider({ children }) {
     if (data.session) {
       setSession(data.session);
       await loadProfile(data.user.id);
+      supabase.rpc('log_action', { p_action: 'login', p_table: '', p_record_id: null, p_details: null }).catch(() => {});
     }
     return data;
   };
@@ -70,6 +71,9 @@ export function AuthProvider({ children }) {
   };
 
   const signOut = async () => {
+    try {
+      await supabase.rpc('log_action', { p_action: 'logout', p_table: '', p_record_id: null, p_details: null });
+    } catch {}
     await supabase.auth.signOut();
     setSession(null);
     setProfile(null);
@@ -108,6 +112,7 @@ export function AuthProvider({ children }) {
   };
 
   const hasPin = Boolean(profile?.pin_hash);
+  const isAdmin = Boolean(profile?.workspace_members?.some((m) => m.role === 'admin'));
 
   return (
     <AuthCtx.Provider
@@ -124,6 +129,7 @@ export function AuthProvider({ children }) {
         setupPin,
         changePin,
         hasPin,
+        isAdmin,
         reloadProfile: () => loadProfile(session?.user?.id),
       }}
     >

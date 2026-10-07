@@ -344,10 +344,12 @@ export async function fetchSettings() {
 }
 
 export async function saveSettings(settings) {
+  const { data: existing } = await supabase.from('settings').select('id').single();
+  if (!existing) throw new Error('Settings not found');
   const { data, error } = await supabase
     .from('settings')
-    .update(settings)
-    .eq('id', 1)
+    .update({ ...settings, updated_at: new Date().toISOString() })
+    .eq('id', existing.id)
     .select()
     .single();
   if (error) throw error;
@@ -409,12 +411,19 @@ export async function updateMemberRole(memberId, role) {
 
 // ── Sales (invoice line items) ──────────────────────────────────────────
 export async function fetchSalesItems(from, to) {
-  let q = supabase
+  const { data, error } = await supabase
     .from('invoice_lines')
     .select('*, invoice:invoices(invoice_no,date,customer:customers(name)), article:articles(code,name)')
     .eq('is_deleted', false)
-    .order('date', { ascending: false });
-  const { data, error } = await q;
+    .order('created_at', { ascending: false });
   if (error) throw error;
-  return data;
+  return (data || []).filter((item) => {
+    if (!item.invoice) return false;
+    if (from && item.invoice.date < from) return false;
+    if (to && item.invoice.date > to) return false;
+    return true;
+  });
 }
+
+// Re-export supabase for pages that need direct access
+export { supabase };
