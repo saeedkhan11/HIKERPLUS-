@@ -15,6 +15,13 @@ docker compose -f docker-compose.base44.yml up -d --build
 
 The compose file sets up a complete local Supabase instance. The SQL migration runs automatically on first boot.
 
+## Preview startup troubleshooting
+- Use explicit IPv4 loopback (`127.0.0.1`) for nginx and Vite healthchecks. Alpine's `wget` resolves `localhost` to IPv6, while these servers listen on IPv4; a false failure on the proxy blocks the frontend's `service_healthy` dependency indefinitely.
+- The proxy healthcheck verifies nginx, `/auth/v1/health`, and `/rest/v1/` independently, with named failure messages. The upstream PostgREST image is distroless, so HTTP readiness is checked through the proxy rather than an unavailable shell inside PostgREST.
+- The frontend installs dependencies from the lockfile with `npm ci` after its source and dependency volume are mounted. It serves the bind-mounted source through Vite, not `frontend/dist`.
+- Recovery verification: `docker compose -f docker-compose.base44.yml ps -a`, curl ports 3000 and 8000, then check the browser reaches the login screen without runtime errors. The two initialization jobs should exit successfully; database, auth, proxy, and frontend should be healthy.
+- Sandbox hostname support is supplied by the platform's `__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS`; no shared Vite allowlist override is needed. `BASE44_PREVIEW_MODE` is passed through but currently unused by shared application code, so unsetting it leaves application behavior unchanged.
+
 ## Using a hosted Supabase project instead
 1. Create a project at supabase.com
 2. Run `supabase/migrations/0001_initial_schema.sql` in the Supabase SQL Editor
