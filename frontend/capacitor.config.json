@@ -1,0 +1,11 @@
+{
+  "appId": "com.hikerplus.erp",
+  "appName": "HIKER+ ERP",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

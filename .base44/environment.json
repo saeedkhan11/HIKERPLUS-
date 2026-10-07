@@ -1,0 +1,17 @@
+{
+  "previewPort": 3000,
+  "healthPath": "/",
+  "startCommand": "docker compose -f docker-compose.base44.yml up -d",
+  "secrets": [
+    {
+      "name": "VITE_SUPABASE_URL",
+      "description": "Supabase project URL. Optional — defaults to the local Supabase instance in Docker Compose. Set this to use a hosted Supabase project instead.",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "VITE_SUPABASE_ANON_KEY",
+      "description": "Supabase anon/public key. Optional — defaults to the local Supabase instance key. Set this to use a hosted Supabase project instead.",
+      "requiredAtBoot": false
+    }
+  ]
+}

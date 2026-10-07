@@ -1,0 +1,16 @@
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  // Relative base so Capacitor can load assets from the local bundle
+  base: '',
+  server: {
+    host: '0.0.0.0',
+    port: 5173,
+    proxy: {
+      '/auth/v1/': 'http://proxy:80',
+      '/rest/v1/': 'http://proxy:80',
+    },
+  },
+});
