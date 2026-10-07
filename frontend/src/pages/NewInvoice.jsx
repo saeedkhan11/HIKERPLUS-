@@ -192,7 +192,7 @@ export default function NewInvoice() {
                     <div className="mt-1 text-right text-[12px] font-semibold">{fmtRs(lineAmount(l))}</div>
                   </div>
                 ))}
-                <Button variant="secondary" size="sm" onClick={() => setForm((f) => ({ ...f, lines: [...f.lines, emptyLine(articles[0])] })}>
+                <Button variant="secondary" size="sm" onClick={() => setForm((f) => ({ ...f, lines: [...f.lines, emptyLine(articles[0])] }))}>
                   <Plus size={14} /> Add row
                 </Button>
               </div>
