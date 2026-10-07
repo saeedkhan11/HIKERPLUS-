@@ -10,7 +10,7 @@
 docker compose -f docker-compose.base44.yml up -d --build
 ```
 - Frontend (Vite dev server): port 3000
-- Supabase API proxy (nginx → GoTrue + PostgREST): port 8000
+- Supabase API proxy (nginx → GoTrue + PostgREST): port 8000 (also proxied through Vite on port 3000 for same-origin browser access)
 - PostgreSQL: internal only
 
 The compose file sets up a complete local Supabase instance. The SQL migration runs automatically on first boot.
