@@ -15,10 +15,12 @@ export function AuthProvider({ children }) {
       .select('*, workspace_members(workspace_id, role)')
       .eq('id', userId)
       .single();
+
     if (!error && data) {
       setProfile(data);
       return data;
     }
+
     return null;
   }, []);
 
@@ -33,30 +35,48 @@ export function AuthProvider({ children }) {
         setSession(s);
         await loadProfile(s.user.id);
       }
+
       setLoading(false);
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, s) => {
-      setSession(s);
-      setPinVerified(false);
-      if (s) {
-        await loadProfile(s.user.id);
-      } else {
-        setProfile(null);
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      async (_event, s) => {
+        setSession(s);
+        setPinVerified(false);
+
+        if (s) {
+          await loadProfile(s.user.id);
+        } else {
+          setProfile(null);
+        }
       }
-    });
+    );
 
     return () => listener.subscription.unsubscribe();
   }, [loadProfile]);
 
   const login = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
     if (error) throw error;
+
     if (data.session) {
       setSession(data.session);
       await loadProfile(data.user.id);
-      supabase.rpc('log_action', { p_action: 'login', p_table: '', p_record_id: null, p_details: null }).catch(() => {});
+
+      supabase
+        .rpc('log_action', {
+          p_action: 'login',
+          p_table: '',
+          p_record_id: null,
+          p_details: null,
+        })
+        .catch(() => {});
     }
+
     return data;
   };
 
@@ -64,17 +84,28 @@ export function AuthProvider({ children }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { name } },
+      options: {
+        data: { name },
+      },
     });
+
     if (error) throw error;
+
     return data;
   };
 
   const signOut = async () => {
     try {
-      await supabase.rpc('log_action', { p_action: 'logout', p_table: '', p_record_id: null, p_details: null });
+      await supabase.rpc('log_action', {
+        p_action: 'logout',
+        p_table: '',
+        p_record_id: null,
+        p_details: null,
+      });
     } catch {}
+
     await supabase.auth.signOut();
+
     setSession(null);
     setProfile(null);
     setPinVerified(false);
@@ -85,24 +116,30 @@ export function AuthProvider({ children }) {
       p_user_id: session.user.id,
       p_pin: pin,
     });
+
     if (error) throw error;
+
     if (data) {
       setPinVerified(true);
       return true;
     }
+
     return false;
   };
 
   const setupPin = async (pin) => {
-  const { error } = await supabase.rpc('setup_pin', {
-    p_pin: pin,
-  });
+    const { error } = await supabase.rpc('setup_pin', {
+      p_pin: pin,
+    });
 
-  if (error) throw error;
+    if (error) {
+      console.error('setup_pin error:', error);
+      throw error;
+    }
 
-  await loadProfile(session.user.id);
-  setPinVerified(true);
-};
+    await loadProfile(session.user.id);
+    setPinVerified(true);
+  };
 
   const changePin = async (oldPin, newPin) => {
     const { error } = await supabase.rpc('change_pin', {
@@ -110,11 +147,18 @@ export function AuthProvider({ children }) {
       p_old_pin: oldPin,
       p_new_pin: newPin,
     });
-    if (error) throw error;
+
+    if (error) {
+      console.error('change_pin error:', error);
+      throw error;
+    }
   };
 
   const hasPin = Boolean(profile?.pin_hash);
-  const isAdmin = Boolean(profile?.workspace_members?.some((m) => m.role === 'admin'));
+
+  const isAdmin = Boolean(
+    profile?.workspace_members?.some((m) => m.role === 'admin')
+  );
 
   return (
     <AuthCtx.Provider
