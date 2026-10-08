@@ -94,7 +94,9 @@ export function AuthProvider({ children }) {
         password,
       });
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     if (data.session) {
       setSession(data.session);
@@ -122,7 +124,9 @@ export function AuthProvider({ children }) {
       },
     });
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     return data;
   };
@@ -152,7 +156,6 @@ export function AuthProvider({ children }) {
     const { data, error } = await supabase.rpc(
       'verify_pin',
       {
-        p_user_id: session.user.id,
         p_pin: pin,
       }
     );
@@ -175,7 +178,7 @@ export function AuthProvider({ children }) {
       throw new Error('No active session');
     }
 
-    const { error } = await supabase.rpc(
+    const { data, error } = await supabase.rpc(
       'setup_pin',
       {
         p_pin: pin,
@@ -187,11 +190,14 @@ export function AuthProvider({ children }) {
       throw error;
     }
 
-    // The database successfully saved the PIN.
-    // Keep only the local PIN-enabled state.
-    // Never create or store a fake pin_hash value.
+    if (data !== true) {
+      throw new Error('PIN setup was not completed');
+    }
+
     setProfile((currentProfile) => {
-      if (!currentProfile) return currentProfile;
+      if (!currentProfile) {
+        return currentProfile;
+      }
 
       return {
         ...currentProfile,
@@ -207,10 +213,9 @@ export function AuthProvider({ children }) {
       throw new Error('No active session');
     }
 
-    const { error } = await supabase.rpc(
+    const { data, error } = await supabase.rpc(
       'change_pin',
       {
-        p_user_id: session.user.id,
         p_old_pin: oldPin,
         p_new_pin: newPin,
       }
@@ -220,10 +225,14 @@ export function AuthProvider({ children }) {
       console.error('change_pin error:', error);
       throw error;
     }
+
+    if (data !== true) {
+      throw new Error('PIN change was not completed');
+    }
+
+    return true;
   };
 
-  // PIN status comes from the profile, not from a fake
-  // client-side pin_hash value.
   const hasPin = Boolean(profile?.pin_enabled);
 
   const isAdmin = Boolean(
