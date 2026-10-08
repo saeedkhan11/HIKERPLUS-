@@ -179,4 +179,4 @@ export default function App() {
   );
 }
 
-This version has one "<Routes>", no duplicated routes, and "/setup-pin" is protected by "RequireAdmin".
+
