@@ -145,30 +145,64 @@ export async function deleteReadyShoes(id) {
 // ─── Production ─────────────────────────────────────────────────────────
 
 export async function fetchProduction(from, to) {
-  let q = supabase.from('production_entries').select('*, article:articles(code,name)').eq('is_deleted', false).order('date', { ascending: false });
-  if (from && to) q = q.gte('date', from).lte('date', to);
+  let q = supabase
+    .from('production_entries')
+    .select('*, article:articles(code,name)')
+    .eq('is_deleted', false)
+    .order('production_date', { ascending: false });
+
+  if (from && to) {
+    q = q
+      .gte('production_date', from)
+      .lte('production_date', to);
+  }
+
   const { data, error } = await q;
+
   if (error) throw error;
-  return data || [];
+
+  // Map live database column names to the names
+  // currently expected by Production.jsx.
+  return (data || []).map((r) => ({
+    ...r,
+    date: r.production_date,
+    input_bags: r.bags,
+    uppers_used: r.upper_quantity,
+    output_pairs: r.pairs,
+  }));
 }
 
 export async function createProduction(data) {
-  const { data: result, error } = await supabase.rpc('record_production', {
-    p_article_id: data.article_id,
-    p_article_name: data.article_name || '',
-    p_size: data.size || '',
-    p_color: data.color || '',
-    p_bags: Number(data.bags) || 0,
-    p_pairs_per_bag: Number(data.pairs_per_bag) || 0,
-    p_notes: data.notes || '',
-    p_production_date: data.production_date || today(),
-  });
+  const { data: result, error } = await supabase.rpc(
+    'record_production',
+    {
+      p_article_id: data.article_id || null,
+      p_article_name: data.article_name || null,
+      p_size: data.size || null,
+      p_color: data.color || null,
+      p_bags: Number(data.bags) || 0,
+      p_pairs_per_bag: Number(data.pairs_per_bag) || 0,
+      p_notes: data.notes || null,
+      p_production_date: data.production_date || today(),
+    }
+  );
+
   if (error) throw error;
+
   return result;
 }
 
 export async function deleteProduction(id) {
-  const { error } = await supabase.from('production_entries').update({ is_deleted: true, updated_at: new Date().toISOString() }).eq('id', id);
+  if (!id) throw new Error('Production entry ID is required');
+
+  const { error } = await supabase
+    .from('production_entries')
+    .update({
+      is_deleted: true,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+
   if (error) throw error;
 }
 
