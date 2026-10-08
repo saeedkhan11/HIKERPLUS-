@@ -72,6 +72,7 @@ function RequireAdmin({ children }) {
 function RequirePin({ children }) {
   const { hasPin, pinVerified, isAdmin, loading } = useAuth();
 
+  console.log('REQUIRE PIN DEBUG:', { hasPin, isAdmin, pinVerified, loading });
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center text-sm text-mutedfg">
