@@ -25,11 +25,14 @@ export default function RawStock() {
   const save = async (e) => {
     e.preventDefault();
     const body = Object.fromEntries(new FormData(e.target).entries());
+    if (!body.category_slug) { setError('Category is required — please select a category.'); return; }
+    if (!body.item?.trim()) { setError('Item name is required.'); return; }
     body.quantity = Number(body.quantity) || 0;
     body.pairs_per_pack = Number(body.pairs_per_pack) || 0;
     body.unit_price = Number(body.unit_price) || 0;
     body.total_pairs = body.pairs_per_pack * body.quantity;
     body.amount = body.quantity * body.unit_price;
+    setError('');
     try {
       if (editing.id) await saveRawStock({ ...editing, ...body });
       else await saveRawStock(body);

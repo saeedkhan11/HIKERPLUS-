@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
-import { fetchProduction, createProduction, deleteProduction, fetchArticles } from '../lib/services';
-import { downloadCSV, fmtNum, fmtRs, today, daysAgo, BAG_SIZES, CARTON_SIZES } from '../lib/utils';
-import { Button, Card, Dialog, Field, Input, Select, PageHeader, Empty, IconButton, StatCard, DateRange } from '../components/ui';
+import { fetchProduction, createProduction, deleteProduction, fetchArticles, fetchSettings } from '../lib/services';
+import { downloadCSV, fmtNum, fmtRs, today, daysAgo, BAG_SIZES } from '../lib/utils';
+import { Button, Card, Dialog, Field, Input, Select, Textarea, PageHeader, Empty, IconButton, StatCard, DateRange } from '../components/ui';
 import { ClickableRow, rowAction, RecordDialog } from '../components/RecordDialog';
 import { Trash2, Plus, Download, Printer } from 'lucide-react';
 
-const BLANK = { article_id: '', date: today(), line: '', shift: '', operator: '', input_bags: '', pairs_per_bag: 100, carton_type: '24', pairs_per_carton: 24, output_cartons: '' };
+const BLANK = { article_id: '', size: '', color: '', bags: '', pairs_per_bag: 100, notes: '', production_date: today() };
 
 export default function Production() {
   const [rows, setRows] = useState([]);
   const [articles, setArticles] = useState([]);
+  const [settings, setSettings] = useState(null);
   const [from, setFrom] = useState(daysAgo(30));
   const [to, setTo] = useState(today());
   const [creating, setCreating] = useState(false);
@@ -21,22 +22,31 @@ export default function Production() {
   useEffect(() => {
     load();
     fetchArticles().then(setArticles).catch(() => {});
+    fetchSettings().then(setSettings).catch(() => {});
   }, [from, to]);
+
+  const bagOptions = settings?.production_bag_options
+    ? settings.production_bag_options.split(',').map((s) => Number(s.trim())).filter((n) => n > 0)
+    : BAG_SIZES;
+
+  const totalPairs = (Number(form.bags) || 0) * (Number(form.pairs_per_bag) || 0);
 
   const submit = async (e) => {
     e.preventDefault();
+    if (!form.article_id) { setError('Article is required'); return; }
+    if (!form.bags || Number(form.bags) <= 0) { setError('Bags must be greater than 0'); return; }
+    setError('');
     try {
+      const article = articles.find((a) => a.id === form.article_id);
       await createProduction({
-        p_article_id: Number(form.article_id),
-        p_date: form.date,
-        p_line: form.line,
-        p_shift: form.shift,
-        p_operator: form.operator,
-        p_input_bags: Number(form.input_bags) || 0,
-        p_pairs_per_bag: Number(form.pairs_per_bag) || 0,
-        p_carton_type: form.carton_type,
-        p_pairs_per_carton: Number(form.pairs_per_carton) || 0,
-        p_output_cartons: Number(form.output_cartons) || 0,
+        article_id: form.article_id,
+        article_name: article?.name || '',
+        size: form.size,
+        color: form.color,
+        bags: Number(form.bags),
+        pairs_per_bag: Number(form.pairs_per_bag),
+        notes: form.notes,
+        production_date: form.production_date,
       });
       setCreating(false);
       setForm(BLANK);
@@ -58,12 +68,12 @@ export default function Production() {
       <PageHeader
         label="Production"
         title="Production"
-        description="Raw uppers go in, finished shoes come out. Stock is deducted and ready shoes added automatically."
+        description="Record production — uppers consumed and ready shoes added automatically."
         actions={
           <>
             <Button variant="secondary" size="sm" onClick={() => downloadCSV('production.csv',
-              ['Date', 'Article', 'Line', 'Operator', 'Bags in', 'Pairs in', 'Cartons out', 'Pairs out'],
-              rows.map((r) => [r.date, r.article?.code, r.line, r.operator, r.input_bags, r.uppers_used, r.output_cartons, r.output_pairs]))}>
+              ['Date', 'Article', 'Size', 'Color', 'Bags', 'Pairs/bag', 'Pairs out'],
+              rows.map((r) => [r.date, r.article?.code, r.size, r.color, r.input_bags, r.pairs_per_bag, r.output_pairs]))}>
               <Download size={13} /> CSV
             </Button>
             <Button variant="secondary" size="sm" onClick={() => window.print()}><Printer size={13} /> Print</Button>
@@ -86,7 +96,7 @@ export default function Production() {
         {rows.length === 0 ? <Empty>No production recorded in this range.</Empty> : (
           <div className="overflow-x-auto">
             <table className="tbl">
-              <thead><tr><th>Date</th><th>Article</th><th>Line</th><th>Operator</th><th className="text-right">Bags in</th><th className="text-right">Pairs in</th><th className="text-right">Cartons out</th><th className="text-right">Pairs out</th><th></th></tr></thead>
+              <thead><tr><th>Date</th><th>Article</th><th>Size</th><th>Color</th><th className="text-right">Bags</th><th className="text-right">Pairs/bag</th><th className="text-right">Pairs out</th><th></th></tr></thead>
               <tbody>
                 {rows.map((r) => (
                   <ClickableRow key={r.id} onOpen={() => setDetail(r)}>
@@ -95,11 +105,10 @@ export default function Production() {
                       <div className="num font-semibold">{r.article?.code}</div>
                       <div className="text-[11px] text-mutedfg">{r.article?.name}</div>
                     </td>
-                    <td className="text-mutedfg">{r.line || '—'}</td>
-                    <td className="text-mutedfg">{r.operator || '—'}</td>
+                    <td className="text-mutedfg">{r.size || '—'}</td>
+                    <td className="text-mutedfg">{r.color || '—'}</td>
                     <td className="num text-right">{fmtNum(r.input_bags)}</td>
-                    <td className="num text-right">{fmtNum(r.uppers_used)}</td>
-                    <td className="num text-right">{fmtNum(r.output_cartons)}</td>
+                    <td className="num text-right">{fmtNum(r.pairs_per_bag)}</td>
                     <td className="num text-right font-bold text-teal">{fmtNum(r.output_pairs)}</td>
                     <td><IconButton onClick={rowAction(() => remove(r))}><Trash2 size={14} /></IconButton></td>
                   </ClickableRow>
@@ -120,26 +129,20 @@ export default function Production() {
                   {articles.map((a) => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
                 </Select>
               </Field>
-              <Field label="Date"><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></Field>
-              <Field label="Line"><Input value={form.line} onChange={(e) => setForm({ ...form, line: e.target.value })} placeholder="Line A" /></Field>
-              <Field label="Shift"><Input value={form.shift} onChange={(e) => setForm({ ...form, shift: e.target.value })} placeholder="Morning" /></Field>
-              <Field label="Operator"><Input value={form.operator} onChange={(e) => setForm({ ...form, operator: e.target.value })} /></Field>
-              <Field label="Input bags"><Input type="number" min="0" step="any" value={form.input_bags} onChange={(e) => setForm({ ...form, input_bags: e.target.value })} /></Field>
+              <Field label="Size"><Input value={form.size} onChange={(e) => setForm({ ...form, size: e.target.value })} placeholder="e.g. 42" /></Field>
+              <Field label="Color"><Input value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} placeholder="e.g. Black" /></Field>
+              <Field label="Bags *"><Input type="number" min="1" step="any" value={form.bags} onChange={(e) => setForm({ ...form, bags: e.target.value })} required /></Field>
               <Field label="Pairs per bag">
                 <Select value={form.pairs_per_bag} onChange={(e) => setForm({ ...form, pairs_per_bag: e.target.value })}>
-                  {BAG_SIZES.map((n) => <option key={n} value={n}>{n} pairs/bag</option>)}
+                  {bagOptions.map((n) => <option key={n} value={n}>{n} pairs/bag</option>)}
                 </Select>
               </Field>
-              <Field label="Output cartons"><Input type="number" min="0" step="any" value={form.output_cartons} onChange={(e) => setForm({ ...form, output_cartons: e.target.value })} /></Field>
-              <Field label="Pairs per carton">
-                <Select value={form.pairs_per_carton} onChange={(e) => setForm({ ...form, pairs_per_carton: e.target.value })}>
-                  {CARTON_SIZES.map((n) => <option key={n} value={n}>{n} pairs/carton</option>)}
-                </Select>
-              </Field>
+              <Field label="Production date"><Input type="date" value={form.production_date} onChange={(e) => setForm({ ...form, production_date: e.target.value })} /></Field>
+              <Field label="Total pairs (auto)"><Input readOnly value={`${fmtNum(totalPairs)} prs`} className="font-bold" /></Field>
+              <Field label="Notes" className="col-span-2"><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></Field>
             </div>
             <div className="mt-2 rounded-lg bg-muted px-3 py-2 text-[11px] text-mutedfg">
-              Uppers used: {fmtNum((Number(form.input_bags) || 0) * (Number(form.pairs_per_bag) || 0))} pairs ·
-              Output: {fmtNum((Number(form.output_cartons) || 0) * (Number(form.pairs_per_carton) || 0))} pairs
+              This will deduct {fmtNum(totalPairs)} uppers from Raw Stock and add {fmtNum(totalPairs)} pairs to Ready Shoes.
             </div>
             <div className="mt-3 flex justify-end gap-2">
               <Button type="button" variant="secondary" onClick={() => setCreating(false)}>Cancel</Button>
@@ -155,15 +158,13 @@ export default function Production() {
           subtitle={detail.date}
           onClose={() => setDetail(null)}
           fields={[
-            ['Line', detail.line],
-            ['Shift', detail.shift],
-            ['Operator', detail.operator],
-            ['Input bags', fmtNum(detail.input_bags)],
+            ['Size', detail.size || '—'],
+            ['Color', detail.color || '—'],
+            ['Bags', fmtNum(detail.input_bags)],
             ['Pairs per bag', fmtNum(detail.pairs_per_bag)],
             ['Uppers used', `${fmtNum(detail.uppers_used)} prs`],
-            ['Carton type', `${detail.pairs_per_carton}-pair`],
-            ['Output cartons', fmtNum(detail.output_cartons)],
             ['Output pairs', `${fmtNum(detail.output_pairs)} prs`],
+            ['Notes', detail.notes || '—'],
             ['Date', detail.date],
           ]}
         />

@@ -4,14 +4,14 @@ import { downloadCSV, fmtRs, fmtNum, today, daysAgo } from '../lib/utils';
 import { Button, Card, Dialog, Field, Input, Select, Textarea, PageHeader, Empty, IconButton, StatCard, DateRange } from '../components/ui';
 import { Trash2, Plus, Download, Printer } from 'lucide-react';
 
-const CATEGORIES = ['rent', 'utilities', 'salaries', 'transport', 'maintenance', 'raw_materials', 'marketing', 'other'];
+const CATEGORIES = ['rent', 'utilities', 'salaries', 'transport', 'maintenance', 'raw_materials', 'marketing', 'labour', 'other'];
 
 export default function Kharcha() {
   const [rows, setRows] = useState([]);
   const [from, setFrom] = useState(daysAgo(30));
   const [to, setTo] = useState(today());
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ category: 'other', amount: '', date: today(), description: '', reference: '' });
+  const [form, setForm] = useState({ title: 'other', details: '', amount: '', expense_date: today() });
   const [error, setError] = useState('');
 
   const load = () => fetchKharcha(from, to).then(setRows).catch((e) => setError(e.message));
@@ -19,22 +19,22 @@ export default function Kharcha() {
 
   const submit = async (e) => {
     e.preventDefault();
+    setError('');
     try {
       await createKharcha({
-        p_category: form.category,
-        p_amount: Number(form.amount) || 0,
-        p_date: form.date,
-        p_description: form.description,
-        p_reference: form.reference,
+        title: form.title,
+        details: form.details,
+        amount: Number(form.amount) || 0,
+        expense_date: form.expense_date,
       });
       setCreating(false);
-      setForm({ category: 'other', amount: '', date: today(), description: '', reference: '' });
+      setForm({ title: 'other', details: '', amount: '', expense_date: today() });
       load();
     } catch (err) { setError(err.message); }
   };
 
   const remove = async (row) => {
-    if (!confirm('Move this expense to the recycle bin?')) return;
+    if (!confirm('Delete this expense?')) return;
     await deleteKharcha(row.id);
     load();
   };
@@ -112,15 +112,14 @@ export default function Kharcha() {
         <Dialog title="New expense" onClose={() => setCreating(false)}>
           <form onSubmit={submit} className="p-5">
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Category">
-                <Select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+              <Field label="Category / Title">
+                <Select value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}>
                   {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
                 </Select>
               </Field>
               <Field label="Amount (Rs) *"><Input type="number" min="0" step="any" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required /></Field>
-              <Field label="Date"><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></Field>
-              <Field label="Reference"><Input value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} /></Field>
-              <Field label="Description" className="col-span-2"><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field>
+              <Field label="Date"><Input type="date" value={form.expense_date} onChange={(e) => setForm({ ...form, expense_date: e.target.value })} /></Field>
+              <Field label="Details" className="col-span-2"><Textarea value={form.details} onChange={(e) => setForm({ ...form, details: e.target.value })} /></Field>
             </div>
             <div className="mt-3 flex justify-end gap-2">
               <Button type="button" variant="secondary" onClick={() => setCreating(false)}>Cancel</Button>

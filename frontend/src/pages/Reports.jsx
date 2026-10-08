@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchInvoices, fetchPurchases, fetchProduction, fetchPayments, fetchKharcha, fetchRoznamcha, fetchArticles, fetchReadyShoes, fetchRawStock, fetchParties, supabase } from '../lib/services';
+import { fetchInvoices, fetchPurchases, fetchProduction, fetchPayments, fetchKharcha, fetchRoznamcha, fetchArticles, fetchReadyShoes, fetchRawStock, fetchParties, fetchLabour, supabase } from '../lib/services';
 import { downloadCSV, fmtRs, fmtNum, today, daysAgo } from '../lib/utils';
 import { Button, Card, Select, PageHeader, Empty, StatCard, DateRange, Badge } from '../components/ui';
 import { Download, Printer } from 'lucide-react';
@@ -16,6 +16,7 @@ const REPORTS = [
   { id: 'cashbook', label: 'Cashbook', desc: 'Roznamcha entries' },
   { id: 'customer_ledger', label: 'Customer Ledger', desc: 'Receivables by customer' },
   { id: 'supplier_ledger', label: 'Supplier Ledger', desc: 'Payables by supplier' },
+  { id: 'labour', label: 'Labour', desc: 'Labour workforce and payments' },
 ];
 
 export default function Reports() {
@@ -107,6 +108,11 @@ export default function Reports() {
         rows = suppliers.map((s) => ({ Name: s.name, Phone: s.phone, City: s.city, 'Opening balance': s.opening_balance, Balance: s.balance, Status: s.status }));
         cols = ['Name', 'Phone', 'City', 'Opening balance', 'Balance', 'Status'];
         sts = [{ label: 'Suppliers', value: fmtNum(rows.length) }, { label: 'Total payable', value: fmtRs(suppliers.reduce((s, c) => s + (Number(c.balance) || 0), 0)) }];
+      } else if (report === 'labour') {
+        const labour = await fetchLabour();
+        cols = ['Name', 'Phone', 'Type', 'Rate', 'Active'];
+        rows = labour.map((l) => ({ Name: l.name, Phone: l.phone, Type: l.labour_type, Rate: l.rate, Active: l.is_active ? 'Yes' : 'No' }));
+        sts = [{ label: 'Labour', value: fmtNum(rows.length) }, { label: 'Total rate', value: fmtRs(labour.reduce((s, l) => s + (Number(l.rate) || 0), 0)) }];
       }
 
       setData(rows);

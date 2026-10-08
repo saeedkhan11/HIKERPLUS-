@@ -24,6 +24,7 @@ import Settings from './pages/Settings';
 import RecycleBin from './pages/RecycleBin';
 import AuditLogs from './pages/AuditLogs';
 import UserManagement from './pages/UserManagement';
+import Labour from './pages/Labour';
 
 function RequireAuth({ children }) {
   const { session, loading, isSupabaseConfigured } = useAuth();
@@ -170,6 +171,7 @@ export default function App() {
         <Route path="payments" element={<Payments />} />
         <Route path="roznamcha" element={<Roznamcha />} />
         <Route path="kharcha" element={<Kharcha />} />
+        <Route path="labour" element={<Labour />} />
         <Route path="reports" element={<Reports />} />
         <Route path="settings" element={<Settings />} />
         <Route path="recycle-bin" element={<RecycleBin />} />

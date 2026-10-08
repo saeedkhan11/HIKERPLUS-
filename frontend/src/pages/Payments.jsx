@@ -10,7 +10,7 @@ export default function Payments() {
   const [from, setFrom] = useState(daysAgo(30));
   const [to, setTo] = useState(today());
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ party_type: 'customer', party_id: '', amount: '', method: 'cash', date: today(), description: '', reference: '' });
+  const [form, setForm] = useState({ payment_type: 'customer', party_id: '', person_name: '', amount: '', details: '', payment_date: today() });
   const [error, setError] = useState('');
 
   const load = () => fetchPayments(from, to).then(setRows).catch((e) => setError(e.message));
@@ -20,22 +20,23 @@ export default function Payments() {
   }, [from, to]);
 
   const openCreate = (type) => {
-    setForm({ party_type: type, party_id: '', amount: '', method: 'cash', date: today(), description: '', reference: '' });
+    setForm({ payment_type: type, party_id: '', person_name: '', amount: '', details: '', payment_date: today() });
     fetchParties(type === 'customer' ? 'customers' : 'suppliers').then(setParties).catch(() => {});
     setCreating(true);
   };
 
   const submit = async (e) => {
     e.preventDefault();
+    setError('');
     try {
+      const party = parties.find((p) => p.id === form.party_id);
       await createPayment({
-        p_party_type: form.party_type,
-        p_party_id: form.party_id,
-        p_amount: Number(form.amount) || 0,
-        p_method: form.method,
-        p_date: form.date,
-        p_description: form.description,
-        p_reference: form.reference,
+        payment_type: form.payment_type,
+        party_id: form.party_id,
+        person_name: party?.name || '',
+        amount: Number(form.amount) || 0,
+        details: form.details,
+        payment_date: form.payment_date,
       });
       setCreating(false);
       load();
@@ -43,7 +44,7 @@ export default function Payments() {
   };
 
   const remove = async (row) => {
-    if (!confirm('Move this payment to the recycle bin?')) return;
+    if (!confirm('Delete this payment?')) return;
     await deletePayment(row.id);
     load();
   };
@@ -60,8 +61,8 @@ export default function Payments() {
         actions={
           <>
             <Button variant="secondary" size="sm" onClick={() => downloadCSV('payments.csv',
-              ['Date', 'Type', 'Party', 'Amount', 'Method', 'Reference'],
-              rows.map((r) => [r.date, r.party_type, r.party_name, r.amount, r.method, r.reference]))}>
+              ['Date', 'Type', 'Party', 'Amount', 'Description'],
+              rows.map((r) => [r.date, r.party_type, r.party_name, r.amount, r.description]))}>
               <Download size={13} /> CSV
             </Button>
             <Button variant="secondary" size="sm" onClick={() => window.print()}><Printer size={13} /> Print</Button>
@@ -85,7 +86,7 @@ export default function Payments() {
         {rows.length === 0 ? <Empty>No payments in this range.</Empty> : (
           <div className="overflow-x-auto">
             <table className="tbl">
-              <thead><tr><th>Date</th><th>Type</th><th>Party</th><th className="text-right">Amount</th><th>Method</th><th>Reference</th><th></th></tr></thead>
+              <thead><tr><th>Date</th><th>Type</th><th>Party</th><th className="text-right">Amount</th><th>Description</th><th></th></tr></thead>
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.id}>
@@ -93,8 +94,7 @@ export default function Payments() {
                     <td><Badge tone={r.party_type === 'customer' ? 'in' : 'out'}>{r.party_type}</Badge></td>
                     <td className="font-semibold">{r.party_name || '—'}</td>
                     <td className="num text-right font-bold">{fmtRs(r.amount)}</td>
-                    <td className="text-mutedfg">{r.method || 'cash'}</td>
-                    <td className="text-mutedfg">{r.reference || '—'}</td>
+                    <td className="text-mutedfg">{r.description || '—'}</td>
                     <td><IconButton onClick={() => remove(r)}><Trash2 size={14} /></IconButton></td>
                   </tr>
                 ))}
@@ -105,25 +105,18 @@ export default function Payments() {
       </Card>
 
       {creating && (
-        <Dialog title={`${form.party_type === 'customer' ? 'Customer' : 'Supplier'} payment`} onClose={() => setCreating(false)}>
+        <Dialog title={`${form.payment_type === 'customer' ? 'Customer' : 'Supplier'} payment`} onClose={() => setCreating(false)}>
           <form onSubmit={submit} className="p-5">
             <div className="grid grid-cols-2 gap-3">
-              <Field label={form.party_type === 'customer' ? 'Customer *' : 'Supplier *'} className="col-span-2">
+              <Field label={form.payment_type === 'customer' ? 'Customer *' : 'Supplier *'} className="col-span-2">
                 <Select value={form.party_id} onChange={(e) => setForm({ ...form, party_id: e.target.value })} required>
                   <option value="">Select…</option>
                   {parties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </Select>
               </Field>
               <Field label="Amount (Rs) *"><Input type="number" min="0" step="any" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required /></Field>
-              <Field label="Date"><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></Field>
-              <Field label="Method">
-                <Select value={form.method} onChange={(e) => setForm({ ...form, method: e.target.value })}>
-                  <option value="cash">Cash</option>
-                  <option value="account">Account (bank transfer)</option>
-                </Select>
-              </Field>
-              <Field label="Reference"><Input value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} placeholder="Invoice no, cheque no…" /></Field>
-              <Field label="Description" className="col-span-2"><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field>
+              <Field label="Date"><Input type="date" value={form.payment_date} onChange={(e) => setForm({ ...form, payment_date: e.target.value })} /></Field>
+              <Field label="Description" className="col-span-2"><Textarea value={form.details} onChange={(e) => setForm({ ...form, details: e.target.value })} /></Field>
             </div>
             <div className="mt-3 flex justify-end gap-2">
               <Button type="button" variant="secondary" onClick={() => setCreating(false)}>Cancel</Button>

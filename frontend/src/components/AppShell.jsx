@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Boxes, Footprints, Layers, Factory, ShoppingCart,
   FileText, TrendingUp, Users, Truck, Wallet, BookOpenText, Receipt,
   BarChart3, Settings2, Trash2, Menu, X, Sun, Moon, LogOut, ShieldCheck,
-  ScrollText, UserCog,
+  ScrollText, UserCog, HardHat,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -31,6 +31,7 @@ const NAV = [
     { to: '/payments', label: 'Payments', icon: Wallet },
     { to: '/roznamcha', label: 'Roznamcha', icon: BookOpenText },
     { to: '/kharcha', label: 'Kharcha', icon: Receipt },
+    { to: '/labour', label: 'Labour', icon: HardHat },
   ] },
   { group: 'System', items: [
     { to: '/reports', label: 'Reports', icon: BarChart3 },

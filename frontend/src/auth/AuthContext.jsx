@@ -267,7 +267,7 @@ export function AuthProvider({ children }) {
     return true;
   };
 
-  const hasPin = Boolean(profile?.pin_enabled);
+  const hasPin = Boolean(profile?.pin_hash);
 
   const isAdmin =
     profile?.workspace_members?.[0]?.role === 'admin';
