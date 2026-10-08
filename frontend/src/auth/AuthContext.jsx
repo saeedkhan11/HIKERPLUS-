@@ -16,35 +16,54 @@ export function AuthProvider({ children }) {
   const [profileLoading, setProfileLoading] = useState(false);
   const [pinVerified, setPinVerified] = useState(false);
 
- const loadProfile = useCallback(async (userId) => {
-  if (!userId) {
-    setProfile(null);
-    return null;
-  }
-
-  setProfileLoading(true);
-
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*, workspace_members(workspace_id, role)')
-      .eq('id', userId)
-      .single();
-
-    if (error) {
-      console.error('loadProfile error:', error);
+    const loadProfile = useCallback(async (userId) => {
+    if (!userId) {
       setProfile(null);
       return null;
     }
 
-    console.log('PROFILE FROM SUPABASE:', data);
-    setProfile(data || null);
-    return data || null;
-  } finally {
-    setProfileLoading(false);
-  }
-}, []);
+    setProfileLoading(true);
 
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('loadProfile error:', error);
+        setProfile(null);
+        return null;
+      }
+
+      console.log('PROFILE FROM SUPABASE:', data);
+
+      const { data: membership, error: membershipError } =
+        await supabase
+          .from('workspace_members')
+          .select('workspace_id, role')
+          .eq('user_id', userId);
+
+      if (membershipError) {
+        console.error(
+          'workspace_members error:',
+          membershipError
+        );
+      }
+
+      const profileWithMembership = {
+        ...(data || {}),
+        workspace_members: membership || [],
+      };
+
+      setProfile(profileWithMembership);
+      return profileWithMembership;
+    } finally {
+      setProfileLoading(false);
+    }
+  }, []);
+ 
   useEffect(() => {
     if (!isSupabaseConfigured) {
       setLoading(false);
