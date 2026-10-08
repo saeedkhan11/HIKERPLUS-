@@ -27,7 +27,7 @@ export function AuthProvider({ children }) {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*, workspace_members(workspace_id, role)')
+        .select('*')
         .eq('id', userId)
         .single();
 
@@ -37,8 +37,26 @@ export function AuthProvider({ children }) {
         return null;
       }
 
-      setProfile(data || null);
-      return data || null;
+      const { data: membership, error: membershipError } =
+        await supabase
+          .from('workspace_members')
+          .select('workspace_id, role')
+          .eq('user_id', userId);
+
+      if (membershipError) {
+        console.error(
+          'workspace_members error:',
+          membershipError
+        );
+      }
+
+      const profileWithMembership = {
+        ...(data || {}),
+        workspace_members: membership || [],
+      };
+
+      setProfile(profileWithMembership);
+      return profileWithMembership;
     } finally {
       setProfileLoading(false);
     }
@@ -190,10 +208,6 @@ export function AuthProvider({ children }) {
 
     return false;
   };
-const setupPin = async (pin) => {
-  const { error } = await supabase.rpc('setup_pin', {
-    p_pin: pin,
-  });
 
   const setupPin = async (pin) => {
     if (!session?.user?.id) {
@@ -227,10 +241,6 @@ const setupPin = async (pin) => {
     setPinVerified(true);
   };
 
-  await loadProfile(session.user.id);
-  setPinVerified(true);
-};
-  
   const changePin = async (oldPin, newPin) => {
     if (!session?.user?.id) {
       throw new Error('No active session');
@@ -256,7 +266,7 @@ const setupPin = async (pin) => {
   const hasPin = Boolean(profile?.pin_enabled);
 
   const isAdmin =
-  profile?.workspace_members?.[0]?.role === 'admin';
+    profile?.workspace_members?.[0]?.role === 'admin';
 
   const authLoading = loading || profileLoading;
 
