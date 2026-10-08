@@ -1,4 +1,10 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const AuthCtx = createContext(null);
@@ -60,18 +66,20 @@ export function AuthProvider({ children }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
-      if (!mounted) return;
+    } = supabase.auth.onAuthStateChange(
+      async (_event, currentSession) => {
+        if (!mounted) return;
 
-      setSession(currentSession);
-      setPinVerified(false);
+        setSession(currentSession);
+        setPinVerified(false);
 
-      if (currentSession) {
-        await loadProfile(currentSession.user.id);
-      } else {
-        setProfile(null);
+        if (currentSession) {
+          await loadProfile(currentSession.user.id);
+        } else {
+          setProfile(null);
+        }
       }
-    });
+    );
 
     return () => {
       mounted = false;
@@ -80,10 +88,11 @@ export function AuthProvider({ children }) {
   }, [loadProfile]);
 
   const login = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { data, error } =
+      await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
     if (error) throw error;
 
@@ -140,10 +149,13 @@ export function AuthProvider({ children }) {
       throw new Error('No active session');
     }
 
-    const { data, error } = await supabase.rpc('verify_pin', {
-      p_user_id: session.user.id,
-      p_pin: pin,
-    });
+    const { data, error } = await supabase.rpc(
+      'verify_pin',
+      {
+        p_user_id: session.user.id,
+        p_pin: pin,
+      }
+    );
 
     if (error) {
       console.error('verify_pin error:', error);
@@ -163,25 +175,27 @@ export function AuthProvider({ children }) {
       throw new Error('No active session');
     }
 
-    const { error } = await supabase.rpc('setup_pin', {
-      p_pin: pin,
-    });
+    const { error } = await supabase.rpc(
+      'setup_pin',
+      {
+        p_pin: pin,
+      }
+    );
 
     if (error) {
       console.error('setup_pin error:', error);
       throw error;
     }
 
-    // The database has successfully saved the PIN.
-    // Update the local profile state without making another
-    // database request that could delay navigation.
+    // The database successfully saved the PIN.
+    // Keep only the local PIN-enabled state.
+    // Never create or store a fake pin_hash value.
     setProfile((currentProfile) => {
       if (!currentProfile) return currentProfile;
 
       return {
         ...currentProfile,
         pin_enabled: true,
-        pin_hash: currentProfile.pin_hash || 'pin-configured',
       };
     });
 
@@ -193,11 +207,14 @@ export function AuthProvider({ children }) {
       throw new Error('No active session');
     }
 
-    const { error } = await supabase.rpc('change_pin', {
-      p_user_id: session.user.id,
-      p_old_pin: oldPin,
-      p_new_pin: newPin,
-    });
+    const { error } = await supabase.rpc(
+      'change_pin',
+      {
+        p_user_id: session.user.id,
+        p_old_pin: oldPin,
+        p_new_pin: newPin,
+      }
+    );
 
     if (error) {
       console.error('change_pin error:', error);
@@ -205,7 +222,9 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const hasPin = Boolean(profile?.pin_hash);
+  // PIN status comes from the profile, not from a fake
+  // client-side pin_hash value.
+  const hasPin = Boolean(profile?.pin_enabled);
 
   const isAdmin = Boolean(
     profile?.workspace_members?.some(
