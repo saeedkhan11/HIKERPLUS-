@@ -25,11 +25,6 @@ export default function Login({ notConfigured }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  /*
-   * Wait until authentication AND profile loading are complete.
-   * This prevents the app from temporarily thinking that
-   * an existing PIN does not exist.
-   */
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-bg">
@@ -40,13 +35,6 @@ export default function Login({ notConfigured }) {
     );
   }
 
-  /*
-   * Already authenticated:
-   *
-   * PIN exists → Enter PIN
-   * Admin without PIN → Set PIN
-   * Normal user without PIN → Stay on a blocked state
-   */
   if (session) {
     if (hasPin) {
       return <Navigate to="/verify-pin" replace />;
@@ -111,7 +99,6 @@ export default function Login({ notConfigured }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg p-4">
       <div className="w-full max-w-sm">
-
         <div className="mb-6 flex flex-col items-center gap-2 text-center">
           <Logo
             className="h-14 w-14 rounded-2xl"
@@ -128,7 +115,6 @@ export default function Login({ notConfigured }) {
         </div>
 
         <div className="rounded-2xl border border-borderc bg-card p-6 shadow-card">
-
           {notConfigured ? (
             <div className="rounded-lg bg-amber-50 px-4 py-6 text-center">
               <p className="text-sm font-semibold text-amber-800">
@@ -149,7 +135,6 @@ export default function Login({ notConfigured }) {
             </div>
           ) : (
             <form onSubmit={submit}>
-
               {mode === 'register' && (
                 <Field label="Full name">
                   <Input
@@ -215,13 +200,11 @@ export default function Login({ notConfigured }) {
                     ? 'Sign in'
                     : 'Create account'}
               </Button>
-
             </form>
           )}
 
           {!notConfigured && (
             <div className="mt-4 text-center text-xs text-mutedfg">
-
               {mode === 'login' ? (
                 <>
                   New user?{' '}
@@ -251,10 +234,8 @@ export default function Login({ notConfigured }) {
                   </button>
                 </>
               )}
-
             </div>
           )}
-
         </div>
 
         {!notConfigured && (
@@ -262,30 +243,7 @@ export default function Login({ notConfigured }) {
             No demo credentials — use your own Supabase Auth account.
           </div>
         )}
-
       </div>
     </div>
   );
 }
-
-Important
-
-This now uses:
-
-isAdmin
-
-from "AuthContext", so the flow is:
-
-Admin + PIN exists
-→ Login → Verify PIN → Dashboard
-
-Admin + no PIN
-→ Login → Set PIN → Dashboard
-
-Normal user + PIN exists
-→ Login → Verify PIN → Dashboard
-
-Normal user + no PIN
-→ Login → PIN Not Configured → Contact administrator
-
-And the database independently protects "setup_pin()", so hiding the screen isn't your only security layer.
