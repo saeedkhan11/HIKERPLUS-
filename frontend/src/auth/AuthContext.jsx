@@ -94,13 +94,12 @@ export function AuthProvider({ children }) {
   };
 
   const setupPin = async (pin) => {
-    const { error } = await supabase.rpc('setup_pin', {
-      p_user_id: session.user.id,
-      p_pin: pin,
-    });
-    if (error) throw error;
-    await loadProfile(session.user.id);
-  };
+  const { error } = await supabase.rpc('setup_pin', {
+    p_pin: pin,
+  });
+  if (error) throw error;
+  await loadProfile(session.user.id);
+};
 
   const changePin = async (oldPin, newPin) => {
     const { error } = await supabase.rpc('change_pin', {
