@@ -1,32 +1,44 @@
 import { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { Button, Input, Field } from '../components/ui';
 import Logo from '../components/Logo';
 
 export default function PinSetup() {
-  const { session, hasPin, setupPin } = useAuth();
-  const navigate = useNavigate();
+  const {
+    session,
+    hasPin,
+    pinVerified,
+    setupPin,
+  } = useAuth();
 
   const [pin, setPin] = useState('');
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  if (hasPin) return <Navigate to="/verify-pin" replace />;
-  if (!session) return <Navigate to="/login" replace />;
+  if (!session) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // If PIN was already created and verified in this session,
+  // go directly to the dashboard.
+  if (hasPin && pinVerified) {
+    return <Navigate to="/" replace />;
+  }
+
+  // If a PIN already exists but has not been verified,
+  // go to the PIN verification screen.
+  if (hasPin) {
+    return <Navigate to="/verify-pin" replace />;
+  }
 
   const submit = async (e) => {
     e.preventDefault();
     setError('');
 
-    if (pin.length < 4) {
-      setError('PIN must be at least 4 digits');
-      return;
-    }
-
-    if (!/^\d+$/.test(pin)) {
-      setError('PIN must contain only digits');
+    if (!/^\d{4,8}$/.test(pin)) {
+      setError('PIN must contain 4 to 8 digits');
       return;
     }
 
@@ -39,7 +51,9 @@ export default function PinSetup() {
 
     try {
       await setupPin(pin);
-      navigate('/verify-pin', { replace: true });
+
+      // setupPin() sets pinVerified=true.
+      // The component will then redirect to Dashboard.
     } catch (err) {
       setError(err?.message || 'Failed to set up PIN');
     } finally {
