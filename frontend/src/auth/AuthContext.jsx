@@ -190,6 +190,10 @@ export function AuthProvider({ children }) {
 
     return false;
   };
+const setupPin = async (pin) => {
+  const { error } = await supabase.rpc('setup_pin', {
+    p_pin: pin,
+  });
 
   const setupPin = async (pin) => {
     if (!session?.user?.id) {
@@ -223,6 +227,10 @@ export function AuthProvider({ children }) {
     setPinVerified(true);
   };
 
+  await loadProfile(session.user.id);
+  setPinVerified(true);
+};
+  
   const changePin = async (oldPin, newPin) => {
     if (!session?.user?.id) {
       throw new Error('No active session');
