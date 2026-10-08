@@ -97,8 +97,11 @@ export function AuthProvider({ children }) {
   const { error } = await supabase.rpc('setup_pin', {
     p_pin: pin,
   });
+
   if (error) throw error;
+
   await loadProfile(session.user.id);
+  setPinVerified(true);
 };
 
   const changePin = async (oldPin, newPin) => {
