@@ -14,6 +14,7 @@ export default function Login({ notConfigured }) {
   } = useAuth();
 
   const [mode, setMode] = useState('login');
+
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -23,6 +24,11 @@ export default function Login({ notConfigured }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
+  /*
+   * Wait until authentication AND profile loading are complete.
+   * This prevents the app from temporarily thinking that
+   * an existing PIN does not exist.
+   */
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-bg">
@@ -34,10 +40,10 @@ export default function Login({ notConfigured }) {
   }
 
   /*
-   * If the user is already authenticated:
+   * Already authenticated:
    *
-   * PIN exists in Supabase → Verify PIN
-   * No PIN exists → Set PIN
+   * PIN exists → Enter PIN
+   * PIN does not exist → Set PIN
    */
   if (session) {
     return (
@@ -57,12 +63,6 @@ export default function Login({ notConfigured }) {
     try {
       if (mode === 'login') {
         await login(form.email, form.password);
-
-        /*
-         * AuthContext loads the profile after successful login.
-         * Once session/profile state updates, this component
-         * redirects automatically using hasPin above.
-         */
       } else {
         await signUp(
           form.email,
