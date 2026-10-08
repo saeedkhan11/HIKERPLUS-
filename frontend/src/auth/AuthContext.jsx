@@ -16,33 +16,34 @@ export function AuthProvider({ children }) {
   const [profileLoading, setProfileLoading] = useState(false);
   const [pinVerified, setPinVerified] = useState(false);
 
-  const loadProfile = useCallback(async (userId) => {
-    if (!userId) {
+ const loadProfile = useCallback(async (userId) => {
+  if (!userId) {
+    setProfile(null);
+    return null;
+  }
+
+  setProfileLoading(true);
+
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*, workspace_members(workspace_id, role)')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('loadProfile error:', error);
       setProfile(null);
       return null;
     }
 
-    setProfileLoading(true);
-
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*, workspace_members(workspace_id, role)')
-        .eq('id', userId)
-        .single();
-
-      if (error) {
-        console.error('loadProfile error:', error);
-        setProfile(null);
-        return null;
-      }
-
-      setProfile(data || null);
-      return data || null;
-    } finally {
-      setProfileLoading(false);
-    }
-  }, []);
+    console.log('PROFILE FROM SUPABASE:', data);
+    setProfile(data || null);
+    return data || null;
+  } finally {
+    setProfileLoading(false);
+  }
+}, []);
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
