@@ -3,9 +3,14 @@
 -- Run this in your Supabase SQL Editor (Dashboard → SQL → New query)
 -- ============================================================================
 
--- Extensions
+-- Extensions (supabase/postgres image installs pgcrypto in "extensions" schema)
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE SCHEMA IF NOT EXISTS extensions;
+
+-- Ensure anon/authenticated roles can find extension functions (pgcrypto lives in extensions schema)
+ALTER ROLE anon IN DATABASE postgres SET search_path TO auth, public, extensions;
+ALTER ROLE authenticated IN DATABASE postgres SET search_path TO auth, public, extensions;
 
 -- auth.uid() — used by RLS policies (Supabase provides this; define for self-hosted)
 CREATE SCHEMA IF NOT EXISTS auth;
@@ -545,7 +550,7 @@ CREATE POLICY aud_sel ON audit_logs FOR SELECT USING (workspace_id = current_wor
 CREATE OR REPLACE FUNCTION setup_pin(p_user_id UUID, p_pin TEXT)
 RETURNS void AS $$
 BEGIN
-  UPDATE profiles SET pin_hash = crypt(p_pin, gen_salt('bf')) WHERE id = p_user_id;
+  UPDATE profiles SET pin_hash = extensions.crypt(p_pin, extensions.gen_salt('bf')) WHERE id = p_user_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -554,7 +559,7 @@ RETURNS BOOLEAN AS $$
 BEGIN
   RETURN EXISTS (
     SELECT 1 FROM profiles WHERE id = p_user_id AND pin_hash IS NOT NULL
-      AND pin_hash = crypt(p_pin, pin_hash)
+      AND pin_hash = extensions.crypt(p_pin, pin_hash)
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -563,11 +568,11 @@ CREATE OR REPLACE FUNCTION change_pin(p_user_id UUID, p_old_pin TEXT, p_new_pin 
 RETURNS void AS $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM profiles WHERE id = p_user_id AND pin_hash = crypt(p_old_pin, pin_hash)
+    SELECT 1 FROM profiles WHERE id = p_user_id AND pin_hash = extensions.crypt(p_old_pin, pin_hash)
   ) THEN
     RAISE EXCEPTION 'Old PIN is incorrect';
   END IF;
-  UPDATE profiles SET pin_hash = crypt(p_new_pin, gen_salt('bf')) WHERE id = p_user_id;
+  UPDATE profiles SET pin_hash = extensions.crypt(p_new_pin, extensions.gen_salt('bf')) WHERE id = p_user_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

@@ -63,6 +63,9 @@ export default function Settings() {
               <Field label="Phone"><Input value={form.phone || ''} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
               <Field label="Email"><Input value={form.email || ''} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
               <Field label="Pairs per carton"><Input type="number" value={form.pairs_per_carton || 24} onChange={(e) => setForm({ ...form, pairs_per_carton: Number(e.target.value) })} /></Field>
+              <Field label="Production bag options" className="col-span-2"><Input value={form.production_bag_options || ''} onChange={(e) => setForm({ ...form, production_bag_options: e.target.value })} placeholder="e.g. 80, 100, 120, 150" /></Field>
+              <Field label="Carton options" className="col-span-2"><Input value={form.carton_options || ''} onChange={(e) => setForm({ ...form, carton_options: e.target.value })} placeholder="e.g. 12, 18, 24" /></Field>
+              <Field label="Invoice starting number"><Input type="number" value={form.invoice_start_number || 100} onChange={(e) => setForm({ ...form, invoice_start_number: Number(e.target.value) })} /></Field>
             </div>
             <div className="mt-3 flex justify-end">
               <Button type="submit" disabled={busy}><Save size={15} /> {busy ? 'Saving…' : 'Save'}</Button>

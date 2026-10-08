@@ -49,14 +49,17 @@ export default function Dashboard() {
       )}
 
       <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatCard label="Sales invoiced" value={fmtRs(d.sales_invoiced)} sub={`${fmtNum(d.invoice_count)} invoice(s)`} accent="copper" />
-        <StatCard label="Pairs sold" value={`${fmtNum(d.pairs_sold)} prs`} sub="Through invoices" accent="teal" />
-        <StatCard label="Pairs produced" value={`${fmtNum(d.production_recent)} prs`} sub={`${fmtNum(d.production_pairs)} prs all-time`} accent="ink" />
-        <StatCard label="Ready shoes" value={`${fmtNum(d.ready_pairs)} prs`} sub="Available to invoice" accent="copper" />
-        <StatCard label="Uppers in factory" value={`${fmtNum(d.uppers_pairs)} prs`} sub={`Raw stock value ${fmtRs(d.stock_value)}`} accent="teal" />
-        <StatCard label="Receivable" value={fmtRs(d.receivables)} sub="Outstanding from customers" accent="ink" />
-        <StatCard label="Payable" value={fmtRs(d.payables)} sub="Owed to suppliers" accent="copper" />
+        <StatCard label="Articles" value={fmtNum(d.article_count)} sub="Registered" accent="copper" />
+        <StatCard label="Sales invoiced" value={fmtRs(d.sales_invoiced)} sub={`${fmtNum(d.invoice_count)} invoice(s)`} accent="teal" />
+        <StatCard label="Pairs sold" value={`${fmtNum(d.pairs_sold)} prs`} sub="Through invoices" accent="ink" />
+        <StatCard label="Pairs produced" value={`${fmtNum(d.production_recent)} prs`} sub={`${fmtNum(d.production_pairs)} prs all-time`} accent="copper" />
+        <StatCard label="Ready shoes" value={`${fmtNum(d.ready_pairs)} prs`} sub="Available to invoice" accent="teal" />
+        <StatCard label="Uppers in factory" value={`${fmtNum(d.uppers_pairs)} prs`} sub={`Stock value ${fmtRs(d.stock_value)}`} accent="ink" />
+        <StatCard label="Purchases" value={fmtRs(d.purchase_total)} sub="Total from suppliers" accent="copper" />
+        <StatCard label="Receivable" value={fmtRs(d.receivables)} sub="From customers" accent="teal" />
+        <StatCard label="Payable" value={fmtRs(d.payables)} sub="To suppliers" accent="ink" />
         <StatCard label="Cash in hand" value={fmtRs(d.cash)} sub={`In ${fmtRs(d.cash_in)} · Out ${fmtRs(d.cash_out)}`} accent="teal" />
+        <StatCard label="Labour" value={fmtNum(d.labour_count)} sub={`Paid ${fmtRs(d.labour_paid)}`} accent="copper" />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">

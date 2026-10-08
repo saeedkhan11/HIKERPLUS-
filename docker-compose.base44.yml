@@ -59,7 +59,7 @@ services:
       PGPASSWORD: postgres
     volumes:
       - ./supabase/migrations:/migrations:ro
-    command: ["sh", "-c", "until psql -h db -U postgres -c 'SELECT 1 FROM auth.users LIMIT 1' 2>/dev/null; do echo 'Waiting for auth schema...'; sleep 2; done && if psql -h db -U postgres -tAc \"SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='workspace_members'\" | grep -q 1; then echo 'Schema already migrated, skipping'; else psql -h db -U postgres -v ON_ERROR_STOP=1 -c 'SET search_path TO public;' -f /migrations/0001_initial_schema.sql && echo 'Migration complete'; fi"]
+    command: ["sh", "-c", "until psql -h db -U postgres -c 'SELECT 1 FROM auth.users LIMIT 1' 2>/dev/null; do echo 'Waiting for auth schema...'; sleep 2; done && if psql -h db -U postgres -tAc \"SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='workspace_members'\" | grep -q 1; then echo 'Schema already migrated, skipping initial'; else psql -h db -U postgres -v ON_ERROR_STOP=1 -c 'SET search_path TO public;' -f /migrations/0001_initial_schema.sql && echo 'Initial migration complete'; fi && psql -h db -U postgres -v ON_ERROR_STOP=1 -c 'SET search_path TO public;' -f /migrations/0002_upgrade_schema.sql && echo 'Upgrade migration complete'"]
     restart: "no"
 
   rest:
@@ -73,6 +73,7 @@ services:
       PGRST_DB_SCHEMAS: public
       PGRST_DB_ANON_ROLE: anon
       PGRST_JWT_SECRET: super-secret-jwt-token-with-at-least-32-characters-long
+      PGRST_JWT_ROLE_CLAIM_KEY: '."https://supabase.io/role"'
       PGRST_CORS_ALLOWED_ORIGINS: "*"
     # PostgREST v12 image is distroless (no shell/wget); proxy healthcheck covers API health
     healthcheck:
