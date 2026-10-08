@@ -37,13 +37,8 @@ export function AuthProvider({ children }) {
         return null;
       }
 
-      if (data) {
-        setProfile(data);
-        return data;
-      }
-
-      setProfile(null);
-      return null;
+      setProfile(data || null);
+      return data || null;
     } finally {
       setProfileLoading(false);
     }
@@ -74,6 +69,7 @@ export function AuthProvider({ children }) {
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
+
         if (mounted) {
           setSession(null);
           setProfile(null);
@@ -123,6 +119,7 @@ export function AuthProvider({ children }) {
 
     if (data.session) {
       setSession(data.session);
+      setPinVerified(false);
 
       await loadProfile(data.user.id);
 
@@ -177,12 +174,9 @@ export function AuthProvider({ children }) {
       throw new Error('No active session');
     }
 
-    const { data, error } = await supabase.rpc(
-      'verify_pin',
-      {
-        p_pin: pin,
-      }
-    );
+    const { data, error } = await supabase.rpc('verify_pin', {
+      p_pin: pin,
+    });
 
     if (error) {
       console.error('verify_pin error:', error);
@@ -202,12 +196,9 @@ export function AuthProvider({ children }) {
       throw new Error('No active session');
     }
 
-    const { data, error } = await supabase.rpc(
-      'setup_pin',
-      {
-        p_pin: pin,
-      }
-    );
+    const { data, error } = await supabase.rpc('setup_pin', {
+      p_pin: pin,
+    });
 
     if (error) {
       console.error('setup_pin error:', error);
@@ -237,13 +228,10 @@ export function AuthProvider({ children }) {
       throw new Error('No active session');
     }
 
-    const { data, error } = await supabase.rpc(
-      'change_pin',
-      {
-        p_old_pin: oldPin,
-        p_new_pin: newPin,
-      }
-    );
+    const { data, error } = await supabase.rpc('change_pin', {
+      p_old_pin: oldPin,
+      p_new_pin: newPin,
+    });
 
     if (error) {
       console.error('change_pin error:', error);
@@ -293,17 +281,3 @@ export function AuthProvider({ children }) {
 }
 
 export const useAuth = () => useContext(AuthCtx);
-
-After saving
-
-Don't change any other files.
-
-Run:
-
-npm run build
-
-If it says build successful, send me the output.
-
-Then we'll test the actual flow with your admin account:
-
-"hikerplusshoes@gmail.com" → password → PIN → Dashboard.
