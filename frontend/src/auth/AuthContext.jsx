@@ -16,7 +16,7 @@ export function AuthProvider({ children }) {
   const [profileLoading, setProfileLoading] = useState(false);
   const [pinVerified, setPinVerified] = useState(false);
 
-  const loadProfile = useCallback(async (userId) => {
+    const loadProfile = useCallback(async (userId) => {
     if (!userId) {
       setProfile(null);
       return null;
@@ -36,6 +36,8 @@ export function AuthProvider({ children }) {
         setProfile(null);
         return null;
       }
+
+      console.log('PROFILE FROM SUPABASE:', data);
 
       const { data: membership, error: membershipError } =
         await supabase
@@ -61,7 +63,7 @@ export function AuthProvider({ children }) {
       setProfileLoading(false);
     }
   }, []);
-
+ 
   useEffect(() => {
     if (!isSupabaseConfigured) {
       setLoading(false);
