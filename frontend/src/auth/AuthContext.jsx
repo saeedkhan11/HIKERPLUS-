@@ -1,4 +1,10 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const AuthCtx = createContext(null);
@@ -7,19 +13,35 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [pinVerified, setPinVerified] = useState(false);
 
   const loadProfile = useCallback(async (userId) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*, workspace_members(workspace_id, role)')
-      .eq('id', userId)
-      .single();
-    if (!error && data) {
-      setProfile(data);
-      return data;
+    if (!userId) {
+      setProfile(null);
+      return null;
     }
-    return null;
+
+    setProfileLoading(true);
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*, workspace_members(workspace_id, role)')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('loadProfile error:', error);
+        setProfile(null);
+        return null;
+      }
+
+      setProfile(data || null);
+      return data || null;
+    } finally {
+      setProfileLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -28,35 +50,89 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
-      if (s) {
-        setSession(s);
-        await loadProfile(s.user.id);
-      }
-      setLoading(false);
-    });
+    let mounted = true;
 
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, s) => {
-      setSession(s);
-      setPinVerified(false);
-      if (s) {
-        await loadProfile(s.user.id);
-      } else {
-        setProfile(null);
-      }
-    });
+    const initialize = async () => {
+      try {
+        const {
+          data: { session: currentSession },
+        } = await supabase.auth.getSession();
 
-    return () => listener.subscription.unsubscribe();
+        if (!mounted) return;
+
+        setSession(currentSession);
+
+        if (currentSession) {
+          await loadProfile(currentSession.user.id);
+        } else {
+          setProfile(null);
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+
+        if (mounted) {
+          setSession(null);
+          setProfile(null);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    initialize();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      async (_event, currentSession) => {
+        if (!mounted) return;
+
+        setSession(currentSession);
+        setPinVerified(false);
+
+        if (currentSession) {
+          await loadProfile(currentSession.user.id);
+        } else {
+          setProfile(null);
+        }
+      }
+    );
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, [loadProfile]);
 
   const login = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    const { data, error } =
+      await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+    if (error) {
+      throw error;
+    }
+
     if (data.session) {
       setSession(data.session);
+      setPinVerified(false);
+
       await loadProfile(data.user.id);
-      supabase.rpc('log_action', { p_action: 'login', p_table: '', p_record_id: null, p_details: null }).catch(() => {});
+
+      supabase
+        .rpc('log_action', {
+          p_action: 'login',
+          p_table: '',
+          p_record_id: null,
+          p_details: null,
+        })
+        .catch(() => {});
     }
+
     return data;
   };
 
@@ -64,32 +140,54 @@ export function AuthProvider({ children }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { name } },
+      options: {
+        data: { name },
+      },
     });
-    if (error) throw error;
+
+    if (error) {
+      throw error;
+    }
+
     return data;
   };
 
   const signOut = async () => {
     try {
-      await supabase.rpc('log_action', { p_action: 'logout', p_table: '', p_record_id: null, p_details: null });
+      await supabase.rpc('log_action', {
+        p_action: 'logout',
+        p_table: '',
+        p_record_id: null,
+        p_details: null,
+      });
     } catch {}
+
     await supabase.auth.signOut();
+
     setSession(null);
     setProfile(null);
     setPinVerified(false);
   };
 
   const verifyPin = async (pin) => {
+    if (!session?.user?.id) {
+      throw new Error('No active session');
+    }
+
     const { data, error } = await supabase.rpc('verify_pin', {
-      p_user_id: session.user.id,
       p_pin: pin,
     });
-    if (error) throw error;
-    if (data) {
+
+    if (error) {
+      console.error('verify_pin error:', error);
+      throw error;
+    }
+
+    if (data === true) {
       setPinVerified(true);
       return true;
     }
+
     return false;
   };
 const setupPin = async (pin) => {
@@ -97,30 +195,77 @@ const setupPin = async (pin) => {
     p_pin: pin,
   });
 
-  if (error) throw error;
+  const setupPin = async (pin) => {
+    if (!session?.user?.id) {
+      throw new Error('No active session');
+    }
+
+    const { data, error } = await supabase.rpc('setup_pin', {
+      p_pin: pin,
+    });
+
+    if (error) {
+      console.error('setup_pin error:', error);
+      throw error;
+    }
+
+    if (data !== true) {
+      throw new Error('PIN setup was not completed');
+    }
+
+    setProfile((currentProfile) => {
+      if (!currentProfile) {
+        return currentProfile;
+      }
+
+      return {
+        ...currentProfile,
+        pin_enabled: true,
+      };
+    });
+
+    setPinVerified(true);
+  };
 
   await loadProfile(session.user.id);
   setPinVerified(true);
 };
   
   const changePin = async (oldPin, newPin) => {
-    const { error } = await supabase.rpc('change_pin', {
-      p_user_id: session.user.id,
+    if (!session?.user?.id) {
+      throw new Error('No active session');
+    }
+
+    const { data, error } = await supabase.rpc('change_pin', {
       p_old_pin: oldPin,
       p_new_pin: newPin,
     });
-    if (error) throw error;
+
+    if (error) {
+      console.error('change_pin error:', error);
+      throw error;
+    }
+
+    if (data !== true) {
+      throw new Error('PIN change was not completed');
+    }
+
+    return true;
   };
 
-  const hasPin = Boolean(profile?.pin_hash);
-  const isAdmin = Boolean(profile?.workspace_members?.some((m) => m.role === 'admin'));
+  const hasPin = Boolean(profile?.pin_enabled);
+
+  const isAdmin =
+  profile?.workspace_members?.[0]?.role === 'admin';
+
+  const authLoading = loading || profileLoading;
 
   return (
     <AuthCtx.Provider
       value={{
         session,
         profile,
-        loading,
+        loading: authLoading,
         pinVerified,
         isSupabaseConfigured,
         login,
@@ -131,7 +276,8 @@ const setupPin = async (pin) => {
         changePin,
         hasPin,
         isAdmin,
-        reloadProfile: () => loadProfile(session?.user?.id),
+        reloadProfile: () =>
+          loadProfile(session?.user?.id),
       }}
     >
       {children}
