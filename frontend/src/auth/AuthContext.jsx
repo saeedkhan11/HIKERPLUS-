@@ -128,19 +128,27 @@ export function AuthProvider({ children }) {
   };
 
   const setupPin = async (pin) => {
-    const { error } = await supabase.rpc('setup_pin', {
-      p_pin: pin,
-    });
+  const { error } = await supabase.rpc('setup_pin', {
+    p_pin: pin,
+  });
 
-    if (error) {
-      console.error('setup_pin error:', error);
-      throw error;
-    }
+  if (error) {
+    console.error('setup_pin error:', error);
+    throw error;
+  }
 
-    await loadProfile(session.user.id);
-    setPinVerified(true);
-  };
+  setProfile((currentProfile) => {
+    if (!currentProfile) return currentProfile;
 
+    return {
+      ...currentProfile,
+      pin_enabled: true,
+      pin_hash: currentProfile.pin_hash || 'configured',
+    };
+  });
+
+  setPinVerified(true);
+};
   const changePin = async (oldPin, newPin) => {
     const { error } = await supabase.rpc('change_pin', {
       p_user_id: session.user.id,
