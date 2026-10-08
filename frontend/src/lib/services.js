@@ -35,6 +35,8 @@ async function getCurrentUserAndWorkspace() {
   };
 }
 
+const today = () => new Date().toISOString().slice(0, 10);
+
 // ─────────────────────────────────────────────────────────────────────
 // Articles
 // ─────────────────────────────────────────────────────────────────────
@@ -54,7 +56,6 @@ export async function fetchArticles() {
 export async function saveArticle(article) {
   const { user, workspaceId } = await getCurrentUserAndWorkspace();
 
-  // Update existing article
   if (article.id) {
     const { data, error } = await supabase
       .from('articles')
@@ -75,13 +76,11 @@ export async function saveArticle(article) {
     return data;
   }
 
-  // Find highest existing article number
-  const { data: existingArticles, error: codeError } =
-    await supabase
-      .from('articles')
-      .select('code')
-      .eq('workspace_id', workspaceId)
-      .order('created_at', { ascending: false });
+  const { data: existingArticles, error: codeError } = await supabase
+    .from('articles')
+    .select('code')
+    .eq('workspace_id', workspaceId)
+    .order('created_at', { ascending: false });
 
   if (codeError) throw codeError;
 
@@ -148,7 +147,6 @@ export async function fetchRawStock() {
 export async function saveRawStock(item) {
   const { user, workspaceId } = await getCurrentUserAndWorkspace();
 
-  // Update existing record
   if (item.id) {
     const { data, error } = await supabase
       .from('raw_stock')
@@ -175,7 +173,6 @@ export async function saveRawStock(item) {
     return data;
   }
 
-  // Create new record
   const { data, error } = await supabase
     .from('raw_stock')
     .insert({
@@ -233,7 +230,6 @@ export async function fetchReadyShoes() {
 export async function saveReadyShoes(item) {
   const { user, workspaceId } = await getCurrentUserAndWorkspace();
 
-  // Update existing record
   if (item.id) {
     const { data, error } = await supabase
       .from('ready_shoes')
@@ -257,7 +253,6 @@ export async function saveReadyShoes(item) {
     return data;
   }
 
-  // Create new record
   const { data, error } = await supabase
     .from('ready_shoes')
     .insert({
@@ -320,7 +315,16 @@ export async function fetchProduction(from, to) {
 export async function createProduction(data) {
   const { data: result, error } = await supabase.rpc(
     'record_production',
-    data
+    {
+      p_article_id: data.article_id || null,
+      p_article_name: data.article_name || null,
+      p_size: data.size || null,
+      p_color: data.color || null,
+      p_bags: Number(data.bags) || 0,
+      p_pairs_per_bag: Number(data.pairs_per_bag) || 0,
+      p_notes: data.notes || null,
+      p_production_date: data.production_date || today(),
+    }
   );
 
   if (error) throw error;
@@ -367,7 +371,18 @@ export async function fetchPurchases(from, to) {
 export async function createPurchase(data) {
   const { data: result, error } = await supabase.rpc(
     'record_purchase',
-    data
+    {
+      p_supplier_id: data.supplier_id || null,
+      p_supplier_name: data.supplier_name || null,
+      p_article_id: data.article_id || null,
+      p_article_name: data.article_name || null,
+      p_size: data.size || null,
+      p_color: data.color || null,
+      p_quantity: Number(data.quantity) || 0,
+      p_rate: Number(data.rate) || 0,
+      p_notes: data.notes || null,
+      p_purchase_date: data.purchase_date || today(),
+    }
   );
 
   if (error) throw error;
@@ -414,7 +429,6 @@ export async function saveParty(kind, party) {
 
   const { user, workspaceId } = await getCurrentUserAndWorkspace();
 
-  // Update existing customer/supplier
   if (party.id) {
     const updateData = {
       name: party.name,
@@ -438,7 +452,6 @@ export async function saveParty(kind, party) {
     return data;
   }
 
-  // Create new customer/supplier
   const insertData = {
     workspace_id: workspaceId,
     name: party.name,
@@ -479,12 +492,16 @@ export async function deleteParty(kind, id) {
 }
 
 export async function fetchPartyLedger(kind, id) {
-  const fn =
+  if (kind !== 'customers' && kind !== 'suppliers') {
+    throw new Error('Invalid party type');
+  }
+
+  const functionName =
     kind === 'customers'
       ? 'get_customer_ledger'
       : 'get_supplier_ledger';
 
-  const { data, error } = await supabase.rpc(fn, {
+  const { data, error } = await supabase.rpc(functionName, {
     p_party_id: id,
   });
 
@@ -500,9 +517,7 @@ export async function fetchPartyLedger(kind, id) {
 export async function fetchInvoices(from, to) {
   let q = supabase
     .from('invoices')
-    .select(
-      '*, customer:customers(name,phone,address)'
-    )
+    .select('*, customer:customers(name,phone,address)')
     .eq('is_deleted', false)
     .order('invoice_date', { ascending: false });
 
@@ -522,9 +537,7 @@ export async function fetchInvoices(from, to) {
 export async function fetchInvoice(id) {
   const { data: invoice, error } = await supabase
     .from('invoices')
-    .select(
-      '*, customer:customers(name,phone,address)'
-    )
+    .select('*, customer:customers(name,phone,address)')
     .eq('id', id)
     .single();
 
@@ -547,7 +560,16 @@ export async function fetchInvoice(id) {
 export async function createInvoice(data) {
   const { data: result, error } = await supabase.rpc(
     'create_invoice',
-    data
+    {
+      p_customer_id: data.customer_id || null,
+      p_lines: data.lines || [],
+      p_discount: Number(data.discount) || 0,
+      p_tax: Number(data.tax) || 0,
+      p_received: Number(data.received) || 0,
+      p_notes: data.notes || null,
+      p_terms: data.terms || null,
+      p_invoice_date: data.invoice_date || today(),
+    }
   );
 
   if (error) throw error;
@@ -593,7 +615,14 @@ export async function fetchPayments(from, to) {
 export async function createPayment(data) {
   const { data: result, error } = await supabase.rpc(
     'record_payment',
-    data
+    {
+      p_payment_type: data.payment_type || null,
+      p_party_id: data.party_id || null,
+      p_person_name: data.person_name || null,
+      p_amount: Number(data.amount) || 0,
+      p_details: data.details || null,
+      p_payment_date: data.payment_date || today(),
+    }
   );
 
   if (error) throw error;
@@ -642,9 +671,7 @@ export async function createRoznamchaEntry(data) {
     description: data.description || null,
     amount: Number(data.amount) || 0,
     reference_id: data.reference_id || null,
-    transaction_date:
-      data.transaction_date ||
-      new Date().toISOString().slice(0, 10),
+    transaction_date: data.transaction_date || today(),
     created_by: user.id,
   };
 
@@ -685,7 +712,12 @@ export async function fetchKharcha(from, to) {
 export async function createKharcha(data) {
   const { data: result, error } = await supabase.rpc(
     'record_kharcha',
-    data
+    {
+      p_title: data.title || '',
+      p_details: data.details || null,
+      p_amount: Number(data.amount) || 0,
+      p_expense_date: data.expense_date || today(),
+    }
   );
 
   if (error) throw error;
@@ -718,24 +750,53 @@ export async function fetchSettings() {
 }
 
 export async function saveSettings(settings) {
-  const { data: existing, error: existingError } =
-    await supabase
-      .from('settings')
-      .select('id')
-      .single();
+  const { workspaceId } = await getCurrentUserAndWorkspace();
+
+  const updateData = {
+    company_name: settings.company_name ?? null,
+    company_phone: settings.company_phone ?? null,
+    company_email: settings.company_email ?? null,
+    company_address: settings.company_address ?? null,
+    currency: settings.currency ?? 'PKR',
+    pairs_per_carton:
+      Number(settings.pairs_per_carton) || 0,
+    production_bag_options:
+      settings.production_bag_options ?? null,
+    carton_options:
+      settings.carton_options ?? null,
+    invoice_start_number:
+      Number(settings.invoice_start_number) || 100,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data: existing, error: existingError } = await supabase
+    .from('settings')
+    .select('id')
+    .eq('workspace_id', workspaceId)
+    .maybeSingle();
 
   if (existingError) throw existingError;
 
   if (!existing) {
-    throw new Error('Settings not found');
+    const { user } = await getCurrentUserAndWorkspace();
+
+    const { data, error } = await supabase
+      .from('settings')
+      .insert({
+        workspace_id: workspaceId,
+        ...updateData,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return data;
   }
 
   const { data, error } = await supabase
     .from('settings')
-    .update({
-      ...settings,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updateData)
     .eq('id', existing.id)
     .select()
     .single();
@@ -762,7 +823,9 @@ export async function fetchDashboard() {
 // ─────────────────────────────────────────────────────────────────────
 
 export async function fetchRecycleBin() {
-  const { data, error } = await supabase.rpc('get_recycle_bin');
+  const { data, error } = await supabase.rpc(
+    'get_recycle_bin'
+  );
 
   if (error) throw error;
 
@@ -800,7 +863,7 @@ export async function permanentlyDelete(table, id) {
 export async function fetchAuditLogs(limit = 100) {
   const { data, error } = await supabase
     .from('audit_logs')
-    .select('*, user:profiles(name,email)')
+    .select('*')
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -810,13 +873,13 @@ export async function fetchAuditLogs(limit = 100) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// User Management
+// Workspace Members / User Management
 // ─────────────────────────────────────────────────────────────────────
 
 export async function fetchWorkspaceMembers() {
   const { data, error } = await supabase
     .from('workspace_members')
-    .select('*, profile:profiles(name,email)')
+    .select('*')
     .order('created_at');
 
   if (error) throw error;
@@ -869,7 +932,7 @@ export async function fetchSalesItems(from, to) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Re-export Supabase
+// Supabase export
 // ─────────────────────────────────────────────────────────────────────
 
 export { supabase };
