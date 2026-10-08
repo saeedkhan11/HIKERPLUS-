@@ -10,6 +10,7 @@ export default function Login({ notConfigured }) {
     login,
     signUp,
     hasPin,
+    isAdmin,
     loading,
   } = useAuth();
 
@@ -43,14 +44,31 @@ export default function Login({ notConfigured }) {
    * Already authenticated:
    *
    * PIN exists → Enter PIN
-   * PIN does not exist → Set PIN
+   * Admin without PIN → Set PIN
+   * Normal user without PIN → Stay on a blocked state
    */
   if (session) {
+    if (hasPin) {
+      return <Navigate to="/verify-pin" replace />;
+    }
+
+    if (isAdmin) {
+      return <Navigate to="/setup-pin" replace />;
+    }
+
     return (
-      <Navigate
-        to={hasPin ? '/verify-pin' : '/setup-pin'}
-        replace
-      />
+      <div className="flex min-h-screen items-center justify-center bg-bg p-6">
+        <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 text-center shadow-sm">
+          <h1 className="text-xl font-semibold text-fg">
+            PIN Not Configured
+          </h1>
+
+          <p className="mt-3 text-sm text-mutedfg">
+            Your security PIN has not been configured yet.
+            Please contact your administrator.
+          </p>
+        </div>
+      </div>
     );
   }
 
@@ -249,3 +267,25 @@ export default function Login({ notConfigured }) {
     </div>
   );
 }
+
+Important
+
+This now uses:
+
+isAdmin
+
+from "AuthContext", so the flow is:
+
+Admin + PIN exists
+→ Login → Verify PIN → Dashboard
+
+Admin + no PIN
+→ Login → Set PIN → Dashboard
+
+Normal user + PIN exists
+→ Login → Verify PIN → Dashboard
+
+Normal user + no PIN
+→ Login → PIN Not Configured → Contact administrator
+
+And the database independently protects "setup_pin()", so hiding the screen isn't your only security layer.
