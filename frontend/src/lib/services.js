@@ -7,6 +7,7 @@ export async function fetchArticles() {
     .select('*')
     .eq('is_deleted', false)
     .order('code');
+
   if (error) throw error;
   return data;
 }
@@ -15,18 +16,37 @@ export async function saveArticle(article) {
   if (article.id) {
     const { data, error } = await supabase
       .from('articles')
-      .update({ ...article, updated_at: new Date().toISOString() })
+      .update({
+        code: article.code,
+        name: article.name,
+        details: article.details,
+        sizes: article.sizes,
+        colors: article.colors,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', article.id)
       .select()
       .single();
+
     if (error) throw error;
     return data;
   }
+
   const { data, error } = await supabase
     .from('articles')
-    .insert(article)
+    .insert({
+      workspace_id: article.workspace_id,
+      code: article.code,
+      name: article.name,
+      details: article.details,
+      sizes: article.sizes,
+      colors: article.colors,
+      is_deleted: false,
+      created_by: article.created_by,
+    })
     .select()
     .single();
+
   if (error) throw error;
   return data;
 }
@@ -34,8 +54,12 @@ export async function saveArticle(article) {
 export async function deleteArticle(id) {
   const { error } = await supabase
     .from('articles')
-    .update({ is_deleted: true, deleted_date: new Date().toISOString() })
+    .update({
+      is_deleted: true,
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', id);
+
   if (error) throw error;
 }
 
@@ -43,9 +67,10 @@ export async function deleteArticle(id) {
 export async function fetchRawStock() {
   const { data, error } = await supabase
     .from('raw_stock')
-    .select('*, supplier:suppliers(name)')
+    .select('*')
     .eq('is_deleted', false)
-    .order('date', { ascending: false });
+    .order('created_at', { ascending: false });
+
   if (error) throw error;
   return data;
 }
@@ -54,18 +79,34 @@ export async function saveRawStock(item) {
   if (item.id) {
     const { data, error } = await supabase
       .from('raw_stock')
-      .update(item)
+      .update({
+        article_id: item.article_id,
+        category: item.category,
+        subcategory: item.subcategory,
+        article_name: item.article_name,
+        size: item.size,
+        color: item.color,
+        quantity: item.quantity,
+        unit: item.unit,
+        movement_type: item.movement_type,
+        reference_id: item.reference_id,
+        notes: item.notes,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', item.id)
       .select()
       .single();
+
     if (error) throw error;
     return data;
   }
+
   const { data, error } = await supabase
     .from('raw_stock')
     .insert(item)
     .select()
     .single();
+
   if (error) throw error;
   return data;
 }
@@ -73,18 +114,23 @@ export async function saveRawStock(item) {
 export async function deleteRawStock(id) {
   const { error } = await supabase
     .from('raw_stock')
-    .update({ is_deleted: true, deleted_date: new Date().toISOString() })
+    .update({
+      is_deleted: true,
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', id);
+
   if (error) throw error;
 }
 
-// ── Ready Shoes ────────────────────────────────────────────────────────
+// ── Ready Shoes ───────────────────────────────────────────────────────
 export async function fetchReadyShoes() {
   const { data, error } = await supabase
     .from('ready_shoes')
     .select('*, article:articles(code,name)')
     .eq('is_deleted', false)
-    .order('date', { ascending: false });
+    .order('created_at', { ascending: false });
+
   if (error) throw error;
   return data;
 }
@@ -93,18 +139,31 @@ export async function saveReadyShoes(item) {
   if (item.id) {
     const { data, error } = await supabase
       .from('ready_shoes')
-      .update(item)
+      .update({
+        article_id: item.article_id,
+        article_name: item.article_name,
+        size: item.size,
+        color: item.color,
+        quantity: item.quantity,
+        movement_type: item.movement_type,
+        reference_id: item.reference_id,
+        notes: item.notes,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', item.id)
       .select()
       .single();
+
     if (error) throw error;
     return data;
   }
+
   const { data, error } = await supabase
     .from('ready_shoes')
     .insert(item)
     .select()
     .single();
+
   if (error) throw error;
   return data;
 }
@@ -112,26 +171,41 @@ export async function saveReadyShoes(item) {
 export async function deleteReadyShoes(id) {
   const { error } = await supabase
     .from('ready_shoes')
-    .update({ is_deleted: true, deleted_date: new Date().toISOString() })
+    .update({
+      is_deleted: true,
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', id);
+
   if (error) throw error;
 }
 
-// ── Production ─────────────────────────────────────────────────────────
+// ── Production ────────────────────────────────────────────────────────
 export async function fetchProduction(from, to) {
   let q = supabase
     .from('production_entries')
     .select('*, article:articles(code,name)')
     .eq('is_deleted', false)
-    .order('date', { ascending: false });
-  if (from && to) q = q.gte('date', from).lte('date', to);
+    .order('production_date', { ascending: false });
+
+  if (from && to) {
+    q = q
+      .gte('production_date', from)
+      .lte('production_date', to);
+  }
+
   const { data, error } = await q;
+
   if (error) throw error;
   return data;
 }
 
 export async function createProduction(data) {
-  const { data: result, error } = await supabase.rpc('record_production', data);
+  const { data: result, error } = await supabase.rpc(
+    'record_production',
+    data
+  );
+
   if (error) throw error;
   return result;
 }
@@ -139,26 +213,41 @@ export async function createProduction(data) {
 export async function deleteProduction(id) {
   const { error } = await supabase
     .from('production_entries')
-    .update({ is_deleted: true, deleted_date: new Date().toISOString() })
+    .update({
+      is_deleted: true,
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', id);
+
   if (error) throw error;
 }
 
-// ── Purchases ──────────────────────────────────────────────────────────
+// ── Purchases ─────────────────────────────────────────────────────────
 export async function fetchPurchases(from, to) {
   let q = supabase
     .from('purchases')
     .select('*, supplier:suppliers(name)')
     .eq('is_deleted', false)
-    .order('date', { ascending: false });
-  if (from && to) q = q.gte('date', from).lte('date', to);
+    .order('purchase_date', { ascending: false });
+
+  if (from && to) {
+    q = q
+      .gte('purchase_date', from)
+      .lte('purchase_date', to);
+  }
+
   const { data, error } = await q;
+
   if (error) throw error;
   return data;
 }
 
 export async function createPurchase(data) {
-  const { data: result, error } = await supabase.rpc('record_purchase', data);
+  const { data: result, error } = await supabase.rpc(
+    'record_purchase',
+    data
+  );
+
   if (error) throw error;
   return result;
 }
@@ -166,18 +255,23 @@ export async function createPurchase(data) {
 export async function deletePurchase(id) {
   const { error } = await supabase
     .from('purchases')
-    .update({ is_deleted: true, deleted_date: new Date().toISOString() })
+    .update({
+      is_deleted: true,
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', id);
+
   if (error) throw error;
 }
 
-// ── Customers & Suppliers ──────────────────────────────────────────────
+// ── Customers & Suppliers ─────────────────────────────────────────────
 export async function fetchParties(kind) {
   const { data, error } = await supabase
     .from(kind)
     .select('*')
     .eq('is_deleted', false)
     .order('name');
+
   if (error) throw error;
   return data;
 }
@@ -186,18 +280,24 @@ export async function saveParty(kind, party) {
   if (party.id) {
     const { data, error } = await supabase
       .from(kind)
-      .update({ ...party, updated_at: new Date().toISOString() })
+      .update({
+        ...party,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', party.id)
       .select()
       .single();
+
     if (error) throw error;
     return data;
   }
+
   const { data, error } = await supabase
     .from(kind)
     .insert(party)
     .select()
     .single();
+
   if (error) throw error;
   return data;
 }
@@ -205,14 +305,25 @@ export async function saveParty(kind, party) {
 export async function deleteParty(kind, id) {
   const { error } = await supabase
     .from(kind)
-    .update({ is_deleted: true, deleted_date: new Date().toISOString() })
+    .update({
+      is_deleted: true,
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', id);
+
   if (error) throw error;
 }
 
 export async function fetchPartyLedger(kind, id) {
-  const fn = kind === 'customers' ? 'get_customer_ledger' : 'get_supplier_ledger';
-  const { data, error } = await supabase.rpc(fn, { p_party_id: id });
+  const fn =
+    kind === 'customers'
+      ? 'get_customer_ledger'
+      : 'get_supplier_ledger';
+
+  const { data, error } = await supabase.rpc(fn, {
+    p_party_id: id,
+  });
+
   if (error) throw error;
   return data;
 }
@@ -221,11 +332,20 @@ export async function fetchPartyLedger(kind, id) {
 export async function fetchInvoices(from, to) {
   let q = supabase
     .from('invoices')
-    .select('*, customer:customers(name,phone,address,city)')
+    .select(
+      '*, customer:customers(name,phone,address)'
+    )
     .eq('is_deleted', false)
-    .order('date', { ascending: false });
-  if (from && to) q = q.gte('date', from).lte('date', to);
+    .order('invoice_date', { ascending: false });
+
+  if (from && to) {
+    q = q
+      .gte('invoice_date', from)
+      .lte('invoice_date', to);
+  }
+
   const { data, error } = await q;
+
   if (error) throw error;
   return data;
 }
@@ -233,20 +353,33 @@ export async function fetchInvoices(from, to) {
 export async function fetchInvoice(id) {
   const { data: invoice, error } = await supabase
     .from('invoices')
-    .select('*, customer:customers(name,phone,address,city)')
+    .select(
+      '*, customer:customers(name,phone,address)'
+    )
     .eq('id', id)
     .single();
+
   if (error) throw error;
+
   const { data: lines, error: lerr } = await supabase
     .from('invoice_lines')
     .select('*, article:articles(code,name)')
     .eq('invoice_id', id);
+
   if (lerr) throw lerr;
-  return { ...invoice, lines: lines || [] };
+
+  return {
+    ...invoice,
+    lines: lines || [],
+  };
 }
 
 export async function createInvoice(data) {
-  const { data: result, error } = await supabase.rpc('create_invoice', data);
+  const { data: result, error } = await supabase.rpc(
+    'create_invoice',
+    data
+  );
+
   if (error) throw error;
   return result;
 }
@@ -254,8 +387,12 @@ export async function createInvoice(data) {
 export async function deleteInvoice(id) {
   const { error } = await supabase
     .from('invoices')
-    .update({ is_deleted: true, deleted_date: new Date().toISOString() })
+    .update({
+      is_deleted: true,
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', id);
+
   if (error) throw error;
 }
 
@@ -264,16 +401,26 @@ export async function fetchPayments(from, to) {
   let q = supabase
     .from('payments')
     .select('*')
-    .eq('is_deleted', false)
-    .order('date', { ascending: false });
-  if (from && to) q = q.gte('date', from).lte('date', to);
+    .order('payment_date', { ascending: false });
+
+  if (from && to) {
+    q = q
+      .gte('payment_date', from)
+      .lte('payment_date', to);
+  }
+
   const { data, error } = await q;
+
   if (error) throw error;
   return data;
 }
 
 export async function createPayment(data) {
-  const { data: result, error } = await supabase.rpc('record_payment', data);
+  const { data: result, error } = await supabase.rpc(
+    'record_payment',
+    data
+  );
+
   if (error) throw error;
   return result;
 }
@@ -281,8 +428,9 @@ export async function createPayment(data) {
 export async function deletePayment(id) {
   const { error } = await supabase
     .from('payments')
-    .update({ is_deleted: true, deleted_date: new Date().toISOString() })
+    .delete()
     .eq('id', id);
+
   if (error) throw error;
 }
 
@@ -291,10 +439,16 @@ export async function fetchRoznamcha(from, to) {
   let q = supabase
     .from('roznamcha')
     .select('*')
-    .eq('is_deleted', false)
-    .order('date', { ascending: false });
-  if (from && to) q = q.gte('date', from).lte('date', to);
+    .order('transaction_date', { ascending: false });
+
+  if (from && to) {
+    q = q
+      .gte('transaction_date', from)
+      .lte('transaction_date', to);
+  }
+
   const { data, error } = await q;
+
   if (error) throw error;
   return data;
 }
@@ -305,6 +459,7 @@ export async function createRoznamchaEntry(data) {
     .insert(data)
     .select()
     .single();
+
   if (error) throw error;
   return result;
 }
@@ -314,16 +469,26 @@ export async function fetchKharcha(from, to) {
   let q = supabase
     .from('kharcha')
     .select('*')
-    .eq('is_deleted', false)
-    .order('date', { ascending: false });
-  if (from && to) q = q.gte('date', from).lte('date', to);
+    .order('expense_date', { ascending: false });
+
+  if (from && to) {
+    q = q
+      .gte('expense_date', from)
+      .lte('expense_date', to);
+  }
+
   const { data, error } = await q;
+
   if (error) throw error;
   return data;
 }
 
 export async function createKharcha(data) {
-  const { data: result, error } = await supabase.rpc('record_kharcha', data);
+  const { data: result, error } = await supabase.rpc(
+    'record_kharcha',
+    data
+  );
+
   if (error) throw error;
   return result;
 }
@@ -331,27 +496,43 @@ export async function createKharcha(data) {
 export async function deleteKharcha(id) {
   const { error } = await supabase
     .from('kharcha')
-    .update({ is_deleted: true, deleted_date: new Date().toISOString() })
+    .delete()
     .eq('id', id);
+
   if (error) throw error;
 }
 
 // ── Settings ───────────────────────────────────────────────────────────
 export async function fetchSettings() {
-  const { data, error } = await supabase.from('settings').select('*').single();
+  const { data, error } = await supabase
+    .from('settings')
+    .select('*')
+    .single();
+
   if (error) throw error;
   return data;
 }
 
 export async function saveSettings(settings) {
-  const { data: existing } = await supabase.from('settings').select('id').single();
-  if (!existing) throw new Error('Settings not found');
+  const { data: existing } = await supabase
+    .from('settings')
+    .select('id')
+    .single();
+
+  if (!existing) {
+    throw new Error('Settings not found');
+  }
+
   const { data, error } = await supabase
     .from('settings')
-    .update({ ...settings, updated_at: new Date().toISOString() })
+    .update({
+      ...settings,
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', existing.id)
     .select()
     .single();
+
   if (error) throw error;
   return data;
 }
@@ -359,6 +540,7 @@ export async function saveSettings(settings) {
 // ── Dashboard ──────────────────────────────────────────────────────────
 export async function fetchDashboard() {
   const { data, error } = await supabase.rpc('get_dashboard');
+
   if (error) throw error;
   return data;
 }
@@ -366,17 +548,32 @@ export async function fetchDashboard() {
 // ── Recycle Bin ────────────────────────────────────────────────────────
 export async function fetchRecycleBin() {
   const { data, error } = await supabase.rpc('get_recycle_bin');
+
   if (error) throw error;
   return data;
 }
 
 export async function restoreRecord(table, id) {
-  const { error } = await supabase.rpc('restore_record', { p_table: table, p_id: id });
+  const { error } = await supabase.rpc(
+    'restore_record',
+    {
+      p_table: table,
+      p_id: id,
+    }
+  );
+
   if (error) throw error;
 }
 
 export async function permanentlyDelete(table, id) {
-  const { error } = await supabase.rpc('permanent_delete', { p_table: table, p_id: id });
+  const { error } = await supabase.rpc(
+    'permanent_delete',
+    {
+      p_table: table,
+      p_id: id,
+    }
+  );
+
   if (error) throw error;
 }
 
@@ -387,6 +584,7 @@ export async function fetchAuditLogs(limit = 100) {
     .select('*, user:profiles(name,email)')
     .order('created_at', { ascending: false })
     .limit(limit);
+
   if (error) throw error;
   return data;
 }
@@ -397,6 +595,7 @@ export async function fetchWorkspaceMembers() {
     .from('workspace_members')
     .select('*, profile:profiles(name,email)')
     .order('created_at');
+
   if (error) throw error;
   return data;
 }
@@ -406,6 +605,7 @@ export async function updateMemberRole(memberId, role) {
     .from('workspace_members')
     .update({ role })
     .eq('id', memberId);
+
   if (error) throw error;
 }
 
@@ -413,14 +613,30 @@ export async function updateMemberRole(memberId, role) {
 export async function fetchSalesItems(from, to) {
   const { data, error } = await supabase
     .from('invoice_lines')
-    .select('*, invoice:invoices(invoice_no,date,customer:customers(name)), article:articles(code,name)')
-    .eq('is_deleted', false)
+    .select(
+      '*, invoice:invoices(invoice_no,invoice_date,customer:customers(name)), article:articles(code,name)'
+    )
     .order('created_at', { ascending: false });
+
   if (error) throw error;
+
   return (data || []).filter((item) => {
     if (!item.invoice) return false;
-    if (from && item.invoice.date < from) return false;
-    if (to && item.invoice.date > to) return false;
+
+    if (
+      from &&
+      item.invoice.invoice_date < from
+    ) {
+      return false;
+    }
+
+    if (
+      to &&
+      item.invoice.invoice_date > to
+    ) {
+      return false;
+    }
+
     return true;
   });
 }
