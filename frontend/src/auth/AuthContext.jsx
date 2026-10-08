@@ -247,11 +247,8 @@ export function AuthProvider({ children }) {
 
   const hasPin = Boolean(profile?.pin_enabled);
 
-  const isAdmin = Boolean(
-    profile?.workspace_members?.some(
-      (member) => member.role === 'admin'
-    )
-  );
+  const isAdmin =
+  profile?.workspace_members?.[0]?.role === 'admin';
 
   const authLoading = loading || profileLoading;
 
