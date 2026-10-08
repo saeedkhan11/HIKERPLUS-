@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { Button, Input, Field } from '../components/ui';
 import Logo from '../components/Logo';
@@ -9,11 +9,9 @@ export default function Login({ notConfigured }) {
     session,
     login,
     signUp,
-    profile,
+    hasPin,
     loading,
   } = useAuth();
-
-  const navigate = useNavigate();
 
   const [mode, setMode] = useState('login');
   const [form, setForm] = useState({
@@ -35,12 +33,19 @@ export default function Login({ notConfigured }) {
     );
   }
 
+  /*
+   * If the user is already authenticated:
+   *
+   * PIN exists in Supabase → Verify PIN
+   * No PIN exists → Set PIN
+   */
   if (session) {
-    if (profile?.pin_hash) {
-      return <Navigate to="/verify-pin" replace />;
-    }
-
-    return <Navigate to="/setup-pin" replace />;
+    return (
+      <Navigate
+        to={hasPin ? '/verify-pin' : '/setup-pin'}
+        replace
+      />
+    );
   }
 
   const submit = async (e) => {
@@ -51,19 +56,13 @@ export default function Login({ notConfigured }) {
 
     try {
       if (mode === 'login') {
-        const data = await login(form.email, form.password);
+        await login(form.email, form.password);
 
-        const loggedInProfile = data?.user
-          ? await new Promise((resolve) => {
-              setTimeout(() => resolve(null), 0);
-            })
-          : null;
-
-        // AuthContext loads the profile after login.
-        // Navigation is handled by the session/profile state above.
-        if (loggedInProfile) {
-          navigate('/verify-pin', { replace: true });
-        }
+        /*
+         * AuthContext loads the profile after successful login.
+         * Once session/profile state updates, this component
+         * redirects automatically using hasPin above.
+         */
       } else {
         await signUp(
           form.email,
@@ -76,6 +75,7 @@ export default function Login({ notConfigured }) {
         );
 
         setMode('login');
+
         setForm((current) => ({
           ...current,
           password: '',
