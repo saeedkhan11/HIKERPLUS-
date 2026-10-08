@@ -239,6 +239,8 @@ export function AuthProvider({ children }) {
     });
 
     setPinVerified(true);
+
+    await loadProfile(session.user.id);
   };
 
   const changePin = async (oldPin, newPin) => {
