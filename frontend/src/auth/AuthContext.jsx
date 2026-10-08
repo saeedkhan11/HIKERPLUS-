@@ -10,13 +10,20 @@ export function AuthProvider({ children }) {
   const [pinVerified, setPinVerified] = useState(false);
 
   const loadProfile = useCallback(async (userId) => {
+    if (!userId) return null;
+
     const { data, error } = await supabase
       .from('profiles')
       .select('*, workspace_members(workspace_id, role)')
       .eq('id', userId)
       .single();
 
-    if (!error && data) {
+    if (error) {
+      console.error('loadProfile error:', error);
+      return null;
+    }
+
+    if (data) {
       setProfile(data);
       return data;
     }
@@ -30,29 +37,46 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
-      if (s) {
-        setSession(s);
-        await loadProfile(s.user.id);
+    let mounted = true;
+
+    const initialize = async () => {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+
+      if (!mounted) return;
+
+      if (currentSession) {
+        setSession(currentSession);
+        await loadProfile(currentSession.user.id);
       }
 
-      setLoading(false);
+      if (mounted) {
+        setLoading(false);
+      }
+    };
+
+    initialize();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
+      if (!mounted) return;
+
+      setSession(currentSession);
+      setPinVerified(false);
+
+      if (currentSession) {
+        await loadProfile(currentSession.user.id);
+      } else {
+        setProfile(null);
+      }
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      async (_event, s) => {
-        setSession(s);
-        setPinVerified(false);
-
-        if (s) {
-          await loadProfile(s.user.id);
-        } else {
-          setProfile(null);
-        }
-      }
-    );
-
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, [loadProfile]);
 
   const login = async (email, password) => {
@@ -112,14 +136,21 @@ export function AuthProvider({ children }) {
   };
 
   const verifyPin = async (pin) => {
+    if (!session?.user?.id) {
+      throw new Error('No active session');
+    }
+
     const { data, error } = await supabase.rpc('verify_pin', {
       p_user_id: session.user.id,
       p_pin: pin,
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error('verify_pin error:', error);
+      throw error;
+    }
 
-    if (data) {
+    if (data === true) {
       setPinVerified(true);
       return true;
     }
@@ -128,28 +159,40 @@ export function AuthProvider({ children }) {
   };
 
   const setupPin = async (pin) => {
-  const { error } = await supabase.rpc('setup_pin', {
-    p_pin: pin,
-  });
+    if (!session?.user?.id) {
+      throw new Error('No active session');
+    }
 
-  if (error) {
-    console.error('setup_pin error:', error);
-    throw error;
-  }
+    const { error } = await supabase.rpc('setup_pin', {
+      p_pin: pin,
+    });
 
-  setProfile((currentProfile) => {
-    if (!currentProfile) return currentProfile;
+    if (error) {
+      console.error('setup_pin error:', error);
+      throw error;
+    }
 
-    return {
-      ...currentProfile,
-      pin_enabled: true,
-      pin_hash: currentProfile.pin_hash || 'configured',
-    };
-  });
+    // The database has successfully saved the PIN.
+    // Update the local profile state without making another
+    // database request that could delay navigation.
+    setProfile((currentProfile) => {
+      if (!currentProfile) return currentProfile;
 
-  setPinVerified(true);
-};
+      return {
+        ...currentProfile,
+        pin_enabled: true,
+        pin_hash: currentProfile.pin_hash || 'pin-configured',
+      };
+    });
+
+    setPinVerified(true);
+  };
+
   const changePin = async (oldPin, newPin) => {
+    if (!session?.user?.id) {
+      throw new Error('No active session');
+    }
+
     const { error } = await supabase.rpc('change_pin', {
       p_user_id: session.user.id,
       p_old_pin: oldPin,
@@ -165,7 +208,9 @@ export function AuthProvider({ children }) {
   const hasPin = Boolean(profile?.pin_hash);
 
   const isAdmin = Boolean(
-    profile?.workspace_members?.some((m) => m.role === 'admin')
+    profile?.workspace_members?.some(
+      (member) => member.role === 'admin'
+    )
   );
 
   return (
@@ -184,7 +229,8 @@ export function AuthProvider({ children }) {
         changePin,
         hasPin,
         isAdmin,
-        reloadProfile: () => loadProfile(session?.user?.id),
+        reloadProfile: () =>
+          loadProfile(session?.user?.id),
       }}
     >
       {children}
