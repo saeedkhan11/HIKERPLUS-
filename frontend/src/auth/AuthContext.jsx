@@ -92,16 +92,17 @@ export function AuthProvider({ children }) {
     }
     return false;
   };
+const setupPin = async (pin) => {
+  const { error } = await supabase.rpc('setup_pin', {
+    p_pin: pin,
+  });
 
-  const setupPin = async (pin) => {
-    const { error } = await supabase.rpc('setup_pin', {
-      p_user_id: session.user.id,
-      p_pin: pin,
-    });
-    if (error) throw error;
-    await loadProfile(session.user.id);
-  };
+  if (error) throw error;
 
+  await loadProfile(session.user.id);
+  setPinVerified(true);
+};
+  
   const changePin = async (oldPin, newPin) => {
     const { error } = await supabase.rpc('change_pin', {
       p_user_id: session.user.id,
