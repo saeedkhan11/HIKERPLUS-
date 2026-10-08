@@ -13,28 +13,40 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [pinVerified, setPinVerified] = useState(false);
 
   const loadProfile = useCallback(async (userId) => {
-    if (!userId) return null;
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*, workspace_members(workspace_id, role)')
-      .eq('id', userId)
-      .single();
-
-    if (error) {
-      console.error('loadProfile error:', error);
+    if (!userId) {
+      setProfile(null);
       return null;
     }
 
-    if (data) {
-      setProfile(data);
-      return data;
-    }
+    setProfileLoading(true);
 
-    return null;
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*, workspace_members(workspace_id, role)')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('loadProfile error:', error);
+        setProfile(null);
+        return null;
+      }
+
+      if (data) {
+        setProfile(data);
+        return data;
+      }
+
+      setProfile(null);
+      return null;
+    } finally {
+      setProfileLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -46,19 +58,30 @@ export function AuthProvider({ children }) {
     let mounted = true;
 
     const initialize = async () => {
-      const {
-        data: { session: currentSession },
-      } = await supabase.auth.getSession();
+      try {
+        const {
+          data: { session: currentSession },
+        } = await supabase.auth.getSession();
 
-      if (!mounted) return;
+        if (!mounted) return;
 
-      if (currentSession) {
         setSession(currentSession);
-        await loadProfile(currentSession.user.id);
-      }
 
-      if (mounted) {
-        setLoading(false);
+        if (currentSession) {
+          await loadProfile(currentSession.user.id);
+        } else {
+          setProfile(null);
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+        if (mounted) {
+          setSession(null);
+          setProfile(null);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
@@ -100,6 +123,7 @@ export function AuthProvider({ children }) {
 
     if (data.session) {
       setSession(data.session);
+
       await loadProfile(data.user.id);
 
       supabase
@@ -241,12 +265,14 @@ export function AuthProvider({ children }) {
     )
   );
 
+  const authLoading = loading || profileLoading;
+
   return (
     <AuthCtx.Provider
       value={{
         session,
         profile,
-        loading,
+        loading: authLoading,
         pinVerified,
         isSupabaseConfigured,
         login,
@@ -267,3 +293,17 @@ export function AuthProvider({ children }) {
 }
 
 export const useAuth = () => useContext(AuthCtx);
+
+After saving
+
+Don't change any other files.
+
+Run:
+
+npm run build
+
+If it says build successful, send me the output.
+
+Then we'll test the actual flow with your admin account:
+
+"hikerplusshoes@gmail.com" → password → PIN → Dashboard.
